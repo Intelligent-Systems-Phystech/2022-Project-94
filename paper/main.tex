@@ -2,7 +2,7 @@
 \usepackage{arxiv}
 
 \usepackage[utf8]{inputenc}
-\usepackage[english, russian]{babel}
+\usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage{url}
 \usepackage{booktabs}
@@ -13,6 +13,9 @@
 \usepackage{graphicx}
 \usepackage{natbib}
 \usepackage{doi}
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
 
 
 
@@ -61,12 +64,40 @@ pdfkeywords={Hail risk prediction, GNN},
 \maketitle
 
 \begin{abstract}
-	Geo-spatial time series prediction is an open area with great potential for theoretical and practical work. In particular, hail risk assessment is necessary to predict the probability of damage (agriculture, animal husbandry). The aim of our study is to build a hail forecasting model based on graph neural networks. Forecasting has been carried out in the short-term range based on the values ​​of climate variables since 1991. The key features of the problem are: 1) rare events - over the past 30 years there have been less than 700 hail events throughout Russia, 2) the spatial structure of the series data. We are expecting to improve quality of solving such problems by combining methods from~\cite{DBLP:journals/corr/abs-2012-01598} and~\cite{DBLP:journals/corr/abs-2005-07427}.
+	Geo-spatial time series prediction is an open area with great potential for theoretical and practical work. In particular, hail risk assessment is necessary to predict the probability of damage (agriculture, animal husbandry). The aim of our study is to build a hail forecasting model based on graph neural networks. Forecasting has been carried out in the short-term range based on the values of climate variables since 1991. The key features of the problem are: 1) rare events - over the past 30 years there have been less than 700 hail events throughout Russia, 2) the spatial structure of the series data. We are expecting to improve quality of solving such problems by combining methods from~\cite{DBLP:journals/corr/abs-2012-01598} and~\cite{DBLP:journals/corr/abs-2005-07427}.
 \end{abstract}
 
 
-\keywords{Hail risk prediction \and GNN }
+\keywords{Hail risk prediction \and GNN \and spatial time series}
 
+\section{Introduction}
+The main goal of our research is to introduce new GNN architecture by combining state-of-art results in the right way. Our object of research is geo-spatial time series. In common time series is a series of values of a quantity obtained at successive times, often with equal intervals between them. But we want to pay our attention to more extended concept -- spatial time series. Spatial time series are almost the same as ordinary time series, but instead of values we observe some spatial objects(i.e photos, heat maps and etc.). In particular our research is aimed to predict extreme events. We are going to provide a solution to the hail forecasting problem. Hails are extreme events, because over the past 30 years there have been less than 700 hail events throughout Russia. The assessment of hail risk is necessary because of its environment damage. According to Verisk’s 2021 report, in 2020 year losses due to hails reached \$14.2 billion in the USA.
+In the research we set the goal to improve state-of-art methods by combining them in our new architecture. The producing architecture is based on works~\cite{DBLP:journals/corr/abs-2012-01598} and~\cite{DBLP:journals/corr/abs-2005-07427}. ~\cite{DBLP:journals/corr/abs-2005-07427} introduce \textbf{StrGNN} that solves the anomaly detection problem in dynamic graph, this architecture solves big class of problems well, but it should be adapted to narrower tasks. In our work we will re-implement it for our purpose in combination with GNN-network from~\cite{DBLP:journals/corr/abs-2012-01598}. ~\cite{DBLP:journals/corr/abs-2012-01598} based on the model presented in ~\cite{wu2020connecting}. We are going to use climate data from Google Earth Data, CMIP5, NOAA Storm Events Database, Severe Weather Dataset for training and evaluating our architecture.
+
+\section{Problem Statement}
+As mentioned above the architecture that we are going to use is described in~\cite{DBLP:journals/corr/abs-2005-07427}. This is our parametric family of function to map design space to target space. The criterion will be log-loss function. We consider Hail Prediction problem as classification problem. Our goal is to classify months in the prediction horizon whether hail will appear or not.
+Mathematically our problem summarized as following:
+\begin{equation}
+    w^* = \argmin\limits_w \Big ( - \frac{1}{N}\sum\limits_{t = 1 }^{N}(y ^ t \log(g(w, h^t)) + (1 - y ^ t)\log(1 - g(w, h^t)))\Big )
+\end{equation}
+, where: \\
+\begin{itemize}
+    \item $w^*$ is optimal vector of weights of our architecture;
+    \item $w$ is vector of weights of our architecture;
+    \item $t$ is timestamp from the beginning of the prediction horizon;
+    \item $N$ is number of timestamps in prediction horizon;
+    \item $y$ is target class of the timestamp;
+    \item $g$ is fully-connected network;
+    \item $h$ is output of re-implemented version of \textbf{StrGNN}~\cite{DBLP:journals/corr/abs-2005-07427}
+\end{itemize}
+We will compare different impementations by such metrics as: 
+\begin{itemize}
+    \item Precision
+    \item Recall
+    \item F1
+    \item ROC-AUC
+    \item PR-AUC
+\end{itemize}
 \bibliographystyle{abbrv}
 
 \bibliography{references}
