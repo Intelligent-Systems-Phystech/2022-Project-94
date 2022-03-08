@@ -7,17 +7,17 @@ def short_date_format(row):
 
 DATA_PATH = "data/ojdamage_rus.xls"
 REGION = "Субъект Российской Федерации "
-CUR_REGION = "Краснодарский край"
+CUR_REGION = "Тамбовская область"
 EVENTNAME_COL = "Название явления "
 STARTDATE = "Дата начала "
 EVENTTYPE = "Град"
 MONTH_COL = "Month"
 YEAR_COL = "Year"
 TARGET = "target"
-def prepare_data(data_path = DATA_PATH):
+def get_target(data_path = DATA_PATH, region = CUR_REGION):
     data = pd.read_excel(data_path)
     hail_data = data[data[EVENTNAME_COL] == EVENTTYPE].reset_index().drop(columns = "index")[[STARTDATE, REGION]]
-    hail_data = hail_data[hail_data[REGION] == CUR_REGION].reset_index().drop(columns = "index")
+    hail_data = hail_data[hail_data[REGION] == region].reset_index().drop(columns = "index")
     hail_data[STARTDATE] = hail_data[[STARTDATE]].apply(short_date_format, axis = 1)
     hail_data = hail_data.drop_duplicates()
     hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%m.%Y")#, dayfirst = True)

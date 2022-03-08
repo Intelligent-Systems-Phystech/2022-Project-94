@@ -15,9 +15,11 @@
 \usepackage{doi}
 \usepackage{amsmath}
 \usepackage[colorinlistoftodos]{todonotes}
+\usepackage{graphicx}
+\graphicspath{ {../figures/} }
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
-\newcommand\tab[1][0.5cm]{\hspace*{#1}}
+\newcommand\tab[1][1cm]{\hspace*{#1}}
 
 
 
@@ -63,7 +65,7 @@ pdfkeywords={Hail risk prediction, GNN},
 }
 
 \begin{document}
-\fontsize{12}{12pt}\selectfont
+\fontsize{12}{14pt}\selectfont
 \maketitle
 
 \begin{abstract}
@@ -80,10 +82,18 @@ The producing architecture is based on works~\cite{DBLP:journals/corr/abs-2012-0
 
 \section{Problem Statement}
 Using architecture is described in~\cite{DBLP:journals/corr/abs-2005-07427}. This is the parametric family of function to map design space to target space. 
+\subsection{GNN}
+Graph Neural Networks are used when your data has graph structure. The approach of using graph structure of data and its theoretical proof presented in \cite{DBLP:journals/corr/KipfW16}. The main idea is to aggregate features from neighboring nodes under the assumption of their influence as following:
+\begin{equation}
+    Y = AXW
+\end{equation}
+Instead of weighted sum in the layer of neural network there is aggregating of neighboring nodes' features due to dot product with adjacency matrix.
+\begin{equation}
+    Z = f(X,A) = \text{softmax}\big(A~\text{ReLU}\big(AXW^{(0)}\big)W^{(1)}\big)
+\end{equation}
+This is an example of 2-layer Graph Neural Network \cite{DBLP:journals/corr/KipfW16}.
 \subsection{StrGNN}
-This section describes \textbf{StrGNN} model.\\
-Given a temporal network $\{G(t) = \{V(t), E(t)\}^n_{t=1}\}$, where $G(t)$ is the graph snapshot at timestamp $t$ consisting of verticles $V(t)$ and edges $E(t)$.\\
-\textbf{StrGNN} works in three stages: ESG, GSFE, TDN.
+Given a temporal network $\{G(t) = \{V(t), E(t)\}^n_{t=1}\}$, where $G(t)$ is the graph snapshot at timestamp $t$ consisting of verticles $V(t)$ and edges $E(t)$.\\ \textbf{StrGNN} works in three stages: ESG, GSFE, TDN.
 \subsubsubsection{\textbf{ESG: Enclosing Subgraph Generation}}
 
 The goal is to generate enclosing subgraph structure related to the target edge. Employing the whole graph for analysis is computational expensive. Recent work~\cite{DBLP:journals/corr/abs-1806-03536} proved that in Graph Neural Networks each node is most influenced by its neighbors. Enclosing subgraph in dynamic graphs definition according to \cite{DBLP:journals/corr/abs-2005-07427} is following:\\
@@ -95,7 +105,7 @@ Suggested labeling is following:
 where $d(i, x^t)$ is the shortest path distance between $i$ and node $x^t$, $d_{\text{sum}} = d(i, x^t) + d(i, y^t)$.\\
 If $d(i, x^t) = \infty$ or $d(i, y^t) = \infty$, node $i$ is labeled with 0.
 \subsubsubsection{\textbf{GSFE: Graph Structural Feature Extraction}}\\
-Graph Convolution Neural Network from \cite{kipf2017semisupervised} map the subgraph space into embedding space.
+Graph Convolution Neural Network \cite{kipf2017semisupervised} map the subgraph space into embedding space.
 \subsubsubsection{\textbf{TDN: Temporal Detection Network}}
 GSFE generates low-dimensional features, but it does not consider the temporal information to determine the class of the target.\\
 Given the extracted feature matrices $\{H_i\}^t_{i = t-w } \ in \mathbb{R}^{K\times d}$, where $K$ is the number of selected nodes in subgraph and $d$ is dimension of feature for each node.\\
@@ -120,6 +130,69 @@ The problem mathematically summarized as following:
     w^* = \argmin\limits_w \Big ( - \frac{1}{N}\sum\limits_{t = 1 }^{N}(y ^ t \log(g(w, h^t)) + (1 - y ^ t)\log(1 - g(w, h^t)))\Big )
 \end{equation}
 , where  $w^*$ is optimal vector of weights of our architecture; $w$ is vector of weights of our architecture; $t$ is timestamp from the beginning of the prediction horizon; $N$ is number of timestamps in prediction horizon; $y$ is target class of the timestamp; $g$ is fully-connected network; $h$ is output of re-implemented version of \textbf{StrGNN}~\cite{DBLP:journals/corr/abs-2005-07427}\\
+
+
+\section{Computational Experiment}
+The experiment goal is to train and evaluate our model on TerraClimate and meteo.ru data.
+\subsection{Data}
+\subsubsection{TerraClimate}
+TerraClimate is a dataset of monthly climate and climatic water balance for global terrestrial surfaces. It uses climatically aided interpolation, combining high-spatial resolution climatological normals from the WorldClim dataset, with coarser spatial resolution.
+
+This source provides main data for the experiments. Spatial time series of various 
+climatic variables. We use following variables: mean temperature above the surface, surface pressure, total precipitation, 2 components of wind.
+\subsubsection{meteo.ru}
+This data center provides data about hail events from 1991 year in Russia.
+\subsection{Experiment Set-Up}
+Unless otherwise noted, we train re-implemented \textbf{StrGNN} described in Section 2.2 and evaluate prediction accuracy, precision, recall on a test year to be predicted. The data for train and test is described in Section 3.1.
+
+Except of training and evaluating model, the experiment goal is to optimize hyperparameters such as adjancy matrices in Graph-layers. This is important part of research, because it could be interpreted as connections between climatic values. 
+
+Provided model is compared with SMOTE + log-regresion. This baseline is described in Section 4.
+
+List of Expected tables and figures:\todo{temporary}
+
+\begin{tabular}{c|c|c|c}
+    label & precision & recall & f1 \\
+    0 & 0.99 & 0.99 & 0.99 \\
+    1 & 0.99 & 0.99 & 0.99
+\end{tabular}
+
+ROC-AUC plot;\\
+plot of predicted probability with vspan labelling\\
+\section{Preliminary report}
+In order to show how does SMOTE works, there is some experiments with baseline SMOTE + logistic regression on synthetic data . Firstly, created synthetic data for classification problem with imbalanced classes in proportions $98/2$.
+
+\begin{figure}[h]
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{synth_data_before_smote.png} \\ Data distribution before SMOTE}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{synth_data_after_smote.png} \\ Data distribution after SMOTE}
+\end{minipage}
+\end{figure}
+
+SMOTE works by selecting examples that are close in the feature space, drawing a line between the examples in the feature space and drawing a new sample at a point along that line. 
+
+\begin{figure}[h]
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{auc_before_smote.png} \\ ROC-curve distribution before SMOTE}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{auc_after_smote.png} \\ ROC-curve distribution after SMOTE}
+\end{minipage}
+\end{figure}
+
+ROC-AUC increased. So we consider that SMOTE make our model better in some cases.
+
+\section{Baselines}
+The hail risk prediction is classification problems with imbalanced classes. Hail is extreme climatic event. Using SMOTE we can synthesize new examples for the minority classes \cite{DBLP:journals/corr/abs-1106-1813}. SMOTE with logistic regression is our simplest model. This model we use to compare quality with complex one. Logistic regression maps feature space into 1d probability simplex. $\mathbb{R}^n \rightarrow [0,1]$. Logistic regression model is following:
+\begin{equation}
+    y_i = \frac{1}{1 + e^{-x_iw}}
+\end{equation}
+where $x_i$ is feature vector, $w$ is parameters of the model, $y_i$ is probability of positive class labeled "1". $w$ find by LBFGS optimization algorithm minimizing log-loss function. The LBFGS optimization algorithm reviewed in details here \cite{mokhtari2014global}.
+    
 
 \bibliographystyle{abbrv}
 
