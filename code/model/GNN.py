@@ -104,7 +104,7 @@ def train(num_epochs, model, loss_fn, opt, train_dl):
 
             loss.backward()
             opt.step()
-            
+
         losses.append(loss.detach().item())
         print(f'Epoch: {epoch} | Loss: {loss.detach().item()}')
     return losses
