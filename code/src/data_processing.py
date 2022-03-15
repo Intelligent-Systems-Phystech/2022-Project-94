@@ -157,7 +157,8 @@ def get_traindl(
     x = torch.from_numpy(x)
     target = get_target(forecasting_period, target_path)
     y = target.to_numpy()
-    y = torch.from_numpy(y)
+    y = torch.from_numpy(y).float()
+    x = x.long()
     train_ds = TensorDataset(x, y)
 
     batch_size = 4

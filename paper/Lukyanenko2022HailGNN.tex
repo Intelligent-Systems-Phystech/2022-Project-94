@@ -149,6 +149,31 @@ Except of training and evaluating model, the experiment goal is to optimize hype
 
 Provided model is compared with SMOTE + log-regresion. This baseline is described in Section 4.
 
+At every timestamp we have tensor of climatic variables.   
+\begin{figure}[h]
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{figures/tmean_heat_map.png} \\ Month mean temperature}
+\end{minipage}
+\hfill
+\begin{minipage}[h]{0.49\linewidth}
+\center{\includegraphics[scale=0.35]{figures/sp_heat_map.png} \\ Surface pressure}
+\end{minipage}
+\end{figure}
+
+These variables corresponds to Tambov region.
+
+Using GNN-layers it is possible to connect different variables and their spatial neighbourhood. It can be visualized as following: 
+
+\begin{figure}[h]
+\center{\includegraphics[scale=0.35]{figures/climate variable 1 (1).png} \\ Visualisation of principle}
+\end{figure}
+
+Using only GNN + fully connected network we can achieve good results in classifying timestamps with hail events:
+\begin{figure}[h]
+\center{\includegraphics[scale=0.35]{figures/training_curves.png} \\}
+\end{figure}
+
+\newpage
 List of Expected tables and figures:\todo{temporary}
 
 \begin{tabular}{c|c|c|c}
