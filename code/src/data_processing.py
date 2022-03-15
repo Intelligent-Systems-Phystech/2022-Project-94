@@ -1,10 +1,15 @@
+import torch
 from osgeo import gdal
 
 import matplotlib.pyplot as plt
 import os, glob
-import numpy as np
 from tqdm import tqdm
 import subprocess
+import pandas as pd
+import numpy as np
+from torch.utils.data import TensorDataset
+from torch.utils.data import DataLoader
+
 
 def get_file_paths(path_to_data: str = 'drive/MyDrive/Belgorodskaya/*.tif', feature_names: list = ['tmax', 'tmin', 'pr']):
   """
@@ -21,6 +26,7 @@ def get_file_paths(path_to_data: str = 'drive/MyDrive/Belgorodskaya/*.tif', feat
   files_to_mosaic = list(filter(lambda x: sum(fn in x for fn in feature_names) > 0, files_to_mosaic))
   file_paths = {fn: list(filter(lambda x: fn in x, files_to_mosaic)) for fn in feature_names}
   return file_paths
+
 
 def get_coords_res(dataset: gdal.Dataset):
   """
@@ -94,6 +100,7 @@ def dataset_to_np(dataset: gdal.Dataset, x_off: int, y_off: int, xsize: int, ysi
   
   return output
 
+
 def get_nps(feature_names, path_to_tifs, dset_num=0):
   file_paths = get_file_paths(path_to_tifs, feature_names)
   # open gdal files
@@ -122,3 +129,62 @@ def get_nps(feature_names, path_to_tifs, dset_num=0):
     nps['tmean'] = (nps['tmax'] + nps['tmin']) / 2
 
   return nps
+
+
+TARGET_PATH = "data/ojdamage_rus.xls"
+REGION = "Субъект Российской Федерации "
+CUR_REGION = "Тамбовская область"
+EVENTNAME_COL = "Название явления "
+STARTDATE = "Дата начала "
+EVENTTYPE = "Град"
+MONTH_COL = "Month"
+YEAR_COL = "Year"
+TARGET = "target"
+
+
+def get_traindl(
+        forecasting_period: tuple,
+        feature_name: str,
+        data_path: str,
+        target_path: str = TARGET_PATH):
+
+    x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
+    x = x[feature_name]
+    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):
+        numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
+        x = np.concatenate((x, numpys[feature_name]))
+
+    x = torch.from_numpy(x)
+    target = get_target(forecasting_period, target_path)
+    y = target.to_numpy()
+    y = torch.from_numpy(y)
+    train_ds = TensorDataset(x, y)
+
+    batch_size = 4
+    train_dl = DataLoader(train_ds, batch_size)
+
+    return train_dl
+
+
+def short_date_format(row):
+    row[0] = row[0][3:]
+    return row
+
+
+def get_target(forecasting_period: tuple, data_path: str = TARGET_PATH, region: str = CUR_REGION):
+    data = pd.read_excel(data_path)
+    hail_data = data[data[EVENTNAME_COL] == EVENTTYPE].reset_index().drop(columns="index")[[STARTDATE, REGION]]
+    hail_data = hail_data[hail_data[REGION] == region].reset_index().drop(columns="index")
+    hail_data[STARTDATE] = hail_data[[STARTDATE]].apply(short_date_format, axis=1)
+    hail_data = hail_data.drop_duplicates()
+    hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%m.%Y")  # , dayfirst = True)
+    hail_data = hail_data.sort_values(by=[STARTDATE])
+    hail_data = hail_data.drop(columns=[REGION])
+    hail_data[TARGET] = np.ones(hail_data.shape[0], dtype=int)
+    hail_data = hail_data.set_index([STARTDATE])
+    idx = pd.date_range(
+        pd.to_datetime(f"01.{forecasting_period[0]}", format="%m.%Y"),
+        pd.to_datetime(f"12.{forecasting_period[1]}", format="%m.%Y"),
+        freq='MS')
+    hail_data = hail_data.reindex(idx, fill_value=0)
+    return hail_data
