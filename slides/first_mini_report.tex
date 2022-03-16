@@ -1,0 +1,72 @@
+\documentclass{beamer}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\graphicspath{{pictures/}}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\usepackage[utf8x]{inputenc}
+\usepackage[english,russian]{babel}
+\usetheme{Madrid}
+
+
+%Information to be included in the title page:
+\title[] %optional
+{First report}
+
+\subtitle{}
+
+\author[Lukyanenko I. A.] % (optional, for multiple authors)
+{Lukyanenko Ivan Andreevich, B05-904a}
+
+\institute[MIPT] % (optional)
+{
+  MIPT student FPMI 3 course
+}
+
+\date[March 8, 2022] % (optional)
+{First report}
+
+\begin{document}
+
+%\frame{\titlepage}
+\begin{frame}
+    \begin{block}{Usual network layer:}
+        \begin{equation*}
+            Y = XW
+        \end{equation*}
+    \end{block}
+    \begin{block}{Graph network layer:}
+        \begin{equation*}
+            Y = AXW
+        \end{equation*}
+    \end{block}
+    \begin{block}{2 layer GNN:}
+        \begin{equation*}
+            Y = \sigma(\text{ReLU}(AXW^{(0)})W^{(1)})
+        \end{equation*}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    Necessary condition of hail:
+    \begin{itemize}
+        \item speed of wind more 10 m/s
+        \item temperature no less than $-20^{\circ}$C
+    \end{itemize}
+    Also there hail event depends on clouds thickness
+    \begin{itemize}
+        \item 12 km is about 50\% probability of hail
+        \item 14 km is about 75\% probability of hail
+        \item 18 km is about 100\% probability of hail
+    \end{itemize}
+    We should find how to connect density of clouds, its thickness, wind speed and temperature.
+    In order to do it. Find some adjacency matrices to do it.
+\end{frame}
+\begin{frame}
+    Plan for the project:
+    Develop the GNN for timestamps embeddings of various climatic variables.
+    Then put this timestamps embeddings into GRU-LSTM as time series to predict future year hails.
+\end{frame}
+
+
+\end{document}
+
