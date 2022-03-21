@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+
 class GNNLayer(nn.Module):
     def __init__(self, n, long, lat):
         super().__init__()
@@ -12,59 +13,17 @@ class GNNLayer(nn.Module):
             indecies[0].append(j)
             indecies[1].append(j)
             values.append(1)
-            #self.A1[j, j] = 1
         for i in range(lat + 1, (long - 1) * lat - 1):
-            indecies[0].append(i)
-            indecies[1].append(i - 1)
-            #self.A1[i, i - 1] = 1  # пиксель слева
-            indecies[0].append(i)
-            indecies[1].append(i + 1)
-            #self.A1[i, i + 1] = 1  # пиксель справа
-            indecies[0].append(i)
-            indecies[1].append(i + lat)
-            #self.A1[i, i + lat] = 1  # пиксель сверху
-            indecies[0].append(i)
-            indecies[1].append(i - lat)
-            #self.A1[i, i - lat] = 1  # пиксель снизу
-            indecies[0].append(i)
-            indecies[1].append(i + lat - 1)
-            #self.A1[i, i + lat - 1] = 1  # пиксель сверху слева
-            indecies[0].append(i)
-            indecies[1].append(i + lat + 1)
-            #self.A1[i, i + lat + 1] = 1  # пиксель сверху справа
-            indecies[0].append(i)
-            indecies[1].append(i - lat - 1)
-            #self.A1[i, i - lat - 1] = 1  # пиксель снизу слева
-            indecies[0].append(i)
-            indecies[1].append(i - lat + 1)
-            #self.A1[i, i - lat + 1] = 1  # пиксель снизу справа
-            # for symmetry
-            indecies[0].append(i - 1)
-            indecies[1].append(i)
-            #self.A1[i - 1, i] = 1
-            indecies[0].append(i + 1)
-            indecies[1].append( i)
-            #self.A1[i + 1, i] = 1
-            indecies[0].append(i + lat)
-            indecies[1].append(i)
-            #self.A1[i + lat, i] = 1
-            indecies[0].append(i - lat)
-            indecies[1].append( i)
-            #self.A1[i - lat, i] = 1
-            indecies[0].append(i + lat - 1)
-            indecies[1].append(i)
-            #self.A1[i + lat - 1, i] = 1
-            indecies[0].append(i + lat + 1)
-            indecies[1].append( i)
-            #self.A1[i + lat + 1, i] = 1
-            indecies[0].append(i - lat - 1)
-            indecies[1].append( i)
-            #self.A1[i - lat - 1, i] = 1
-            indecies[0].append(i - lat + 1)
-            indecies[1].append(i)
-            #self.A1[i - lat + 1, i] = 1
+            x = i
+            for y in (i - 1, i + 1, i + lat, i - lat, i + lat - 1, i + lat + 1, i - lat - 1, i - lat + 1):
+                indecies[0].append(x)
+                indecies[1].append(y)
+            for y in (i - 1, i + 1, i + lat, i - lat, i + lat - 1, i + lat + 1, i - lat - 1, i - lat + 1):
+                indecies[0].append(y)
+                indecies[1].append(x)
             for i in range(16):
                 values.append(1)
+
         indecies = torch.Tensor(indecies)
         values = torch.Tensor(values)
         self.A1 = torch.sparse_coo_tensor(indecies, values, (long * lat, long * lat))
@@ -75,7 +34,6 @@ class GNNLayer(nn.Module):
         h1 = self.A1 @ x_flatten.T.float()
         h1 = h1.T
         h2 = self.lin1(h1)
-        #h1 = h1.reshape(-1, 16, 16)
         return h2
 
 
