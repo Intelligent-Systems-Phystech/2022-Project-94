@@ -7,6 +7,7 @@
 \usepackage{url}
 \usepackage{booktabs}
 \usepackage{amsfonts}
+\usepackage{amsthm}
 \usepackage{nicefrac}
 \usepackage{microtype}
 \usepackage{lipsum}
@@ -131,7 +132,49 @@ The problem mathematically summarized as following:
 \end{equation}
 , where  $w^*$ is optimal vector of weights of our architecture; $w$ is vector of weights of our architecture; $t$ is timestamp from the beginning of the prediction horizon; $N$ is number of timestamps in prediction horizon; $y$ is target class of the timestamp; $g$ is fully-connected network; $h$ is output of re-implemented version of \textbf{StrGNN}~\cite{DBLP:journals/corr/abs-2005-07427}\\
 
+\section{Theoretical part}
+This section contains theoretical assumptions and hypothesis of provided method of forecasting. Due to solving particular problem from climate science, it is necessary to dive into this problem and understand the processes of hail formation.
+\subsection{How does hail form?}
+According to \cite{hailform}, hailstones are formed when raindrops are carried upward by thunderstorm updrafts into extremely cold areas of the atmosphere and freeze. Hailstones then grow by colliding with liquid water drops that freeze onto the hailstone’s surface. The hail falls when the thunderstorm's updraft can no longer support the weight of the hailstone, which can occur if the stone becomes large enough or the updraft weakens. In most studies, it is noted that most of the growth gradation occurs at a temperature of approximately -10 to -25 ◦C.
 
+\newtheorem{Hypothesis}{Hypothesis}
+\begin{Hypothesis}
+Hail event depends on certain patterns in multivariate time series of climatic variables  such as wind vertical component, wind horizontal component, temperature.
+\end{Hypothesis}
+Important ingredient for creating large hailstones is time. Appreciable growth is only attainable if particles remain in an environment conducive to growth for an extended period of time. Some studies suggest that large hailstones spend as much as 10–15 min or more in growth regions of storms.
+\begin{Hypothesis}
+Hailstones formation spend approximately 20 min. Hailstones are in the clouds till the updrafts of wind prevent them from falling down.
+\end{Hypothesis}
+\subsection{How we can take account of climatic knowledge?}
+\newtheorem{Lemma}{Lemma}
+\begin{Lemma}
+Let $X$ - $n \times m$ feature matrix of $n$ objects with $n$ features. Let our objects have graph structure with $A$ - adjacency matrix. Then  GNN - layers aggregate features from neighbourhood nodes. Moreover applying GNN layers $n$ times, model aggregates $n$ - step neighbours.
+\end{Lemma}
+\begin{proof}
+
+First part of the statement:
+
+Adjacency matrix is symmetric matrix and consists of zeros and ones. In the graph layer adjacency matrix operator $A$ operates on $X$:
+\begin{equation}
+    H_1 = AX
+\end{equation}
+\begin{equation}
+    (H_1)_{i,j} = \sum\limits_{k = 1}^{n}A_{i,k}X_{k,i} 
+\end{equation}
+$X_{k,i}$ represents $i$ feature of $k$ object. $A_{i,k}$ represents connection between $i, k$ objects. Thus, we state that $H_1$ consists of aggregation rows. $i$-th row represents aggregation of $i$-th node neighbours. 
+
+Second part of the statement:
+
+Let define raw object as 0-sized neighbourhood. As we proved above after applying $A$ - matrix to zero-sized neighbourhood we achieve matrix of one-sized neighbourhood. This is the base of induction. Let give assumption that on the $i$-th iteration we have $H_{n-1}$ matrix that represents $(n-1)$-sized neighbourhood. Then after applying matrix $A$ to $H_{n-1}$ one more time we aggregate $i$ - th neighbourhood with $i$-th node neighbours $(n-1)$-aggregation, in this way we get $n$-aggregation. Thus, $H_n$ = $A^nX$ contains $n$-sized neighbourhoods aggregations.
+\end{proof}
+
+Due to Hypothesis 1 provided model needs to aggregate information from different climatic variables and its spatial neighbourhood. Relying on Lemma 1 we achieve this aggregation by using GNN layers in our architecture for timestamp embeddings. Due to Hypothesis 1 provided model needs to reveal temporal patterns of multivariate time series for better classification. This temporal structure is analyzed by GRU layers in our architecture. Due to given hypotheses and theoretical justifications, the result architecture is following:
+\begin{center}
+    \includegraphics[scale=0.19]{figures/HailNet architecture (1).png} \\ Resulting architecture
+\end{center}
+
+
+\newpage
 \section{Computational Experiment}
 The experiment goal is to train and evaluate our model on TerraClimate and meteo.ru data.
 \subsection{Data}
@@ -174,12 +217,33 @@ Using only GNN + fully connected network we can achieve good results in classify
 \center{\includegraphics[scale=0.35]{figures/training_curves.png} \\}
 \end{figure}
 
-
+\subsection{Actual architecture}
 Actual architecture is visualized as following:
 \begin{figure}[h]
 \center{\includegraphics[scale=0.3]{figures/HailNet architecture.png} \\ HailNet architecture}
 \end{figure}
+
 \newpage
+In the GNN layer we applying adjacency matrix to climatic tensor to make attention of spatial neighbourhood. After that we applying two linear layers with sigmoid activation function:
+\begin{equation}
+    H_1 = WAX
+\end{equation}
+\begin{equation}
+    H_2 = \sigma(WH_1)
+\end{equation}
+\begin{equation}
+    H_3 = \sigma(WH_2)
+\end{equation}
+
+Looking forward to modify adjacency matrix according to climate knowledge of hail events and add LSTM/GRU layers to forecast future month.
+
+
+\subsection{Experiment flow}
+\begin{enumerate}
+    \item  Creating torch.DataLoader of downloaded climatic data from TerraClimate using Google Earth Engine and hail events data from meteo.ru.
+    \item Feed 4-sized batches into training algorithm for 100 epochs.
+    \item Updating HailNet parameters optimizing Binary Cross-entropy Loss with Adam optimizer and SGD optimizer.
+\end{enumerate}
 List of Expected tables and figures:\todo{temporary}
 
 \begin{tabular}{c|c|c|c}
