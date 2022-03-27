@@ -66,3 +66,7 @@ def train(num_epochs, model, loss_fn, opt, train_dl):
         losses.append(loss.detach().item())
         print(f'Epoch: {epoch} | Loss: {loss.detach().item()}')
     return losses
+
+
+def test():
+    pass

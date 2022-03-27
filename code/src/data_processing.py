@@ -167,6 +167,31 @@ def get_traindl(
     return train_dl
 
 
+def get_testdl(
+        forecasting_period: tuple,
+        feature_name: str,
+        data_path: str,
+        target_path: str = TARGET_PATH):
+
+    x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
+    x = x[feature_name]
+    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):
+        numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
+        x = np.concatenate((x, numpys[feature_name]))
+
+    x = torch.from_numpy(x)
+    target = get_target(forecasting_period, target_path)
+    y = target.to_numpy()
+    y = torch.from_numpy(y).float()
+    x = x.long()
+    test_ds = TensorDataset(x, y)
+
+    batch_size = 4
+    test_dl = DataLoader(test_ds, batch_size)
+
+    return test_dl
+
+
 def short_date_format(row):
     row[0] = row[0][3:]
     return row

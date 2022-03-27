@@ -70,19 +70,19 @@ pdfkeywords={Hail risk prediction, GNN},
 \maketitle
 
 \begin{abstract}
-	Geo-spatial time series is an open area with great potential for theoretical and practical work. In particular, hail risk assessment is necessary to avoid the damage (agriculture, animal husbandry). The aim of the study is to build a  model based on graph neural networks. Forecasting has been carried out in the short-term range based on the values of climate variables since 1991. The key features of the problem are: 1) rare events - over the past 30 years there have been less than 700 hail events throughout Russia, 2) the spatial structure of the series data. We are expecting to improve quality of solving such problems by combining methods from~\cite{DBLP:journals/corr/abs-2012-01598} and~\cite{DBLP:journals/corr/abs-2005-07427}.
+	Geo-spatial time series is an open area with great potential for theoretical and practical work. In particular, hail risk assessment is necessary to avoid the damage (agriculture, animal husbandry). The aims of the study are to understand how to predict hail events and to build model based on this knowledge. Forecasting has been carried out in the short-term range based on the values of climate variables since 1991. The key features of the problem are: 1) rare events - over the past 30 years there have been less than 700 hail events throughout Russia, 2) the spatial structure of the series data. We are expecting to improve quality of solving such problems by combining methods from~\cite{DBLP:journals/corr/abs-2012-01598} and~\cite{DBLP:journals/corr/abs-2005-07427}.
 \end{abstract}
 
 
 \keywords{Hail risk prediction \and GNN \and spatial time series}
 
 \section{Introduction}
-The main goal of this research is to introduce new GNN architecture by combining state-of-art results~\cite{DBLP:journals/corr/abs-2012-01598},~\cite{DBLP:journals/corr/abs-2005-07427} in the right way. Our object of research is geo-spatial time series. In common time series is a series of values of a quantity obtained at successive times with equal intervals between them. This research is about more extended concept: spatial time series. Spatial time series are almost the same as ordinary time series, but instead of values we observe some spatial objects. This work provides a solution to the hail forecasting problem. The hails are extreme events, because over the past 30 years there have been less than 700 hail events throughout Russia\todo{add citation}. The assessment of hail risk is necessary because of its environment damage. According to Verisk’s 2021 report~\cite{haillosses}, in 2020 year losses due to hails reached \$14.2 billion in the USA.
+The main goals of this research are to understand how to predict hail events and to build model based on GNN and LSTM/GRU - architecture. Our object of research is geo-spatial time series. In common time series is a series of values of a quantity obtained at successive times with equal intervals between them. This research is about more extended concept: spatial time series. Spatial time series are almost the same as ordinary time series, but instead of values we observe some spatial objects. This work provides a solution to the hail forecasting problem. The hails are extreme events. Over the past 30 years there have been less than 700 hail events throughout Russia\todo{add citation}. The assessment of hail risk is necessary because of its environment damage. According to Verisk’s 2021 report~\cite{haillosses}, in 2020 year losses due to hails reached \$14.2 billion in the USA.
 
 The producing architecture is based on works~\cite{DBLP:journals/corr/abs-2012-01598},~\cite{wu2020connecting} and~\cite{DBLP:journals/corr/abs-2005-07427}. ~\cite{DBLP:journals/corr/abs-2005-07427} introduce \textbf{StrGNN} that solves the anomaly detection problem in dynamic graph, this architecture solves big class of problems well, but it should be adapted to narrower tasks. This work produces re-implemented \textbf{StrGNN} for our purpose in combination with GNN-network from~\cite{DBLP:journals/corr/abs-2012-01598}. ~\cite{DBLP:journals/corr/abs-2012-01598} based on the model presented in ~\cite{wu2020connecting}. We are going to use climate data from Google Earth Data, CMIP5, NOAA Storm Events Database, Severe Weather Dataset for training and evaluating our architecture.
 
 \section{Problem Statement}
-Using architecture is described in~\cite{DBLP:journals/corr/abs-2005-07427}. This is the parametric family of function to map design space to target space. 
+This section contains basic approaches of providing architecture. GNN - Layers, StrGNN \cite{DBLP:journals/corr/abs-2005-07427}, LSTM, GRU, loss-functions.
 \subsection{GNN}
 Graph Neural Networks are used when your data has graph structure. The approach of using graph structure of data and its theoretical proof presented in \cite{DBLP:journals/corr/KipfW16}. The main idea is to aggregate features from neighboring nodes under the assumption of their influence as following:
 \begin{equation}
@@ -244,16 +244,7 @@ Looking forward to modify adjacency matrix according to climate knowledge of hai
     \item Feed 4-sized batches into training algorithm for 100 epochs.
     \item Updating HailNet parameters optimizing Binary Cross-entropy Loss with Adam optimizer and SGD optimizer.
 \end{enumerate}
-List of Expected tables and figures:\todo{temporary}
 
-\begin{tabular}{c|c|c|c}
-    label & precision & recall & f1 \\
-    0 & 0.99 & 0.99 & 0.99 \\
-    1 & 0.99 & 0.99 & 0.99
-\end{tabular}
-
-ROC-AUC plot;\\
-plot of predicted probability with vspan labelling\\
 \section{Preliminary report}
 In order to show how does SMOTE works, there is some experiments with baseline SMOTE + logistic regression on synthetic data . Firstly, created synthetic data for classification problem with imbalanced classes in proportions $98/2$.
 
@@ -287,8 +278,9 @@ The hail risk prediction is classification problems with imbalanced classes. Hai
     y_i = \frac{1}{1 + e^{-x_iw}}
 \end{equation}
 where $x_i$ is feature vector, $w$ is parameters of the model, $y_i$ is probability of positive class labeled "1". $w$ find by LBFGS optimization algorithm minimizing log-loss function. The LBFGS optimization algorithm reviewed in details here \cite{mokhtari2014global}.
-    
 
+    
+\newpage
 \bibliographystyle{abbrv}
 
 \bibliography{references}
