@@ -174,18 +174,23 @@ def get_traindl(
     train_ds = TensorDataset(x, y)
     train_dl = DataLoader(train_ds, batch_size)
 
-    return train_dl, x
+    return train_dl
 
 
 def get_testdl(
         forecasting_period: tuple,
         feature_name: str,
         data_path: str,
-        target_path: str = TARGET_PATH):
+        target_path: str = TARGET_PATH,
+        batch_size: int = 1,
+        sequence_length: int = 12,
+        long: int = 234,
+        lat: int = 364
+):
 
     x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
     x = x[feature_name]
-    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):
+    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
         numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
         x = np.concatenate((x, numpys[feature_name]))
 
@@ -193,9 +198,15 @@ def get_testdl(
     target = get_target(forecasting_period, target_path)
     y = target.to_numpy()
     y = torch.from_numpy(y).float()
+    y = y[sequence_length:]
     x = x.long()
+    tensors = []
+    for i in range(x.shape[0] - sequence_length):
+        tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
+
+    x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
+    torch.cat(tensors, out=x)
     test_ds = TensorDataset(x, y)
-    batch_size = 1
     test_dl = DataLoader(test_ds, batch_size)
 
     return test_dl

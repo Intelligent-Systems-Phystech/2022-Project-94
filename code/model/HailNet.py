@@ -50,7 +50,7 @@ class HailNet(nn.Module):
         self.seq_len = seq_len
         self.units = units
         self.embedding_layer = GNNLayer(n, long, lat)
-        self.lin1 = nn.Linear(self.lin1_size * self.lin1_size, 1)
+        self.lin1 = nn.Linear(self.lin1_size * self.lin1_size, self.lin1_size * self.lin1_size)
         self.gru = nn.GRU(
             input_size=self.lin1_size * self.lin1_size,
             hidden_size=self.gru_hidden_size,
@@ -63,15 +63,16 @@ class HailNet(nn.Module):
             self.fully_connected_layer = self.fully_connected(self.units)
 
     @staticmethod
-    def fully_connected(units: list = [16*16, 16, 16]):
+    def block1(unit):
+        return nn.Sequential(nn.Linear(unit[0], unit[1]), nn.Sigmoid())
+
+    def fully_connected(self, units: list = [16*16, 16, 16]):
         net = nn.Sequential()
         for i, unit in enumerate(units):
             if i == len(units) - 1:
-                net.add_module(f'linear {i}', torch.nn.Linear(unit, 1))
-                net.add_module(f'sigmoid {i}', torch.sigmoid())
+                net.add_module(f'block {i}', self.block1([unit, 1]))
             else:
-                net.add_module(f'linear {i}', torch.nn.Linear(unit, unit[i+1]))
-                net.add_module(f'sigmoid {i}', torch.sigmoid())
+                net.add_module(f'block {i}', self.block1([unit, units[i + 1]]))
         return net
 
     def forward(self, x):
@@ -79,13 +80,13 @@ class HailNet(nn.Module):
         h0 = torch.randn(self.gru_num_layers, x.size(0), self.gru_hidden_size)  # hidden cell for gru
         hs1 = []
         for i in range(self.seq_len):
-            t1 = self.embedding_layer(x[:][i])
+            t1 = self.embedding_layer(x[:, i])
             t2 = torch.sigmoid(t1)
             t3 = self.lin1(t2)
             t4 = torch.sigmoid(t3)
+            t4 = t4.unsqueeze(dim=1)
             hs1.append(t4)
-        t = torch.Tensor(x.shape[0], x.shape[1], self.lin1_size * self.lin1_size)
-        torch.cat(hs1, out=t)
+        t = torch.cat(hs1, dim=1)
         # t -> (bacth_size, seq_len, lin1*lin1)
         out, _ = self.gru(t, h0)
         out = out[:, -1, :]
@@ -104,6 +105,7 @@ def train(num_epochs: int, model, loss_fn, opt, train_dl: torch.utils.data.DataL
             loss = loss_fn(pred, yb)
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5)
             opt.step()
 
         losses.append(loss.detach().item())
@@ -120,10 +122,10 @@ def test(model, test_dl: torch.utils.data.DataLoader, metrics: list, metrics_fun
         for xt, yt in test_dl:
             predictions.append(model(xt))
             true_values.append(yt)
-            plt.figure(figsize=(10, 5))
-            plt.imshow(xt.numpy()[0], cmap='hot', interpolation='nearest')
-            plt.show()
-            print(f"target: {yt.item()}, prediction: {model(xt).item()}")
+            #plt.figure(figsize=(10, 5))
+            #plt.imshow(xt.numpy()[0], cmap='hot', interpolation='nearest')
+            #plt.show()
+            #print(f"target: {yt.item()}, prediction: {model(xt).item()}")
         #for metric in metrics:
         #    metrics_values[metric] = metrics_funcs[metric](predictions, true_values)
     return predictions, true_values#, metrics_values
