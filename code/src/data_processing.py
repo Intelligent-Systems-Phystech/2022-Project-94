@@ -144,7 +144,7 @@ TARGET = "target"
 
 def get_traindl(
         forecasting_period: tuple,
-        feature_name: str,
+        feature_names: str,
         data_path: str,
         target_path: str = TARGET_PATH,
         batch_size: int = 4,
@@ -152,25 +152,32 @@ def get_traindl(
         long: int = 234,
         lat: int = 364
 ):
+    xs = []
+    for feature_name in feature_names:
+        x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
+        x = x[feature_name]
+        for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
+            numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
+            x = np.concatenate((x, numpys[feature_name]))
 
-    x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
-    x = x[feature_name]
-    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-        numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
-        x = np.concatenate((x, numpys[feature_name]))
 
-    x = torch.from_numpy(x)
+        x = torch.from_numpy(x)
+        x = x.long()
+        tensors = []
+        for i in range(x.shape[0] - sequence_length):
+            tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
+
+        x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
+        torch.cat(tensors, out=x)
+        x = x.unsqueeze(dim=2)
+        xs.append(x)
+    x = torch.cat(xs, dim=2)
+
     target = get_target(forecasting_period, target_path)
     y = target.to_numpy()
     y = torch.from_numpy(y).float()
     y = y[sequence_length:]
-    x = x.long()
-    tensors = []
-    for i in range(x.shape[0] - sequence_length):
-        tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
 
-    x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
-    torch.cat(tensors, out=x)
     train_ds = TensorDataset(x, y)
     train_dl = DataLoader(train_ds, batch_size)
 
@@ -179,7 +186,7 @@ def get_traindl(
 
 def get_testdl(
         forecasting_period: tuple,
-        feature_name: str,
+        feature_names: str,
         data_path: str,
         target_path: str = TARGET_PATH,
         batch_size: int = 1,
@@ -187,25 +194,31 @@ def get_testdl(
         long: int = 234,
         lat: int = 364
 ):
+    xs = []
+    for feature_name in feature_names:
+        x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
+        x = x[feature_name]
+        for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
+            numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
+            x = np.concatenate((x, numpys[feature_name]))
 
-    x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
-    x = x[feature_name]
-    for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-        numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
-        x = np.concatenate((x, numpys[feature_name]))
+        x = torch.from_numpy(x)
+        x = x.long()
+        tensors = []
+        for i in range(x.shape[0] - sequence_length):
+            tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
 
-    x = torch.from_numpy(x)
+        x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
+        torch.cat(tensors, out=x)
+        x = x.unsqueeze(dim=2)
+        xs.append(x)
+    x = torch.cat(xs, dim=2)
+
     target = get_target(forecasting_period, target_path)
     y = target.to_numpy()
     y = torch.from_numpy(y).float()
     y = y[sequence_length:]
-    x = x.long()
-    tensors = []
-    for i in range(x.shape[0] - sequence_length):
-        tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
 
-    x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
-    torch.cat(tensors, out=x)
     test_ds = TensorDataset(x, y)
     test_dl = DataLoader(test_ds, batch_size)
 

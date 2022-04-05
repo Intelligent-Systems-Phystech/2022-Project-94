@@ -1,33 +1,46 @@
 import torch
 from torch import nn
+import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
 
 class GNNLayer(nn.Module):
+    r"""
+        Graph layer for HailNet
+    """
     def __init__(self, n, long, lat):
         super().__init__()
-        self.lin1 = nn.Linear(long * lat, 16*16)
-        indecies = [[], []]
+        self.lin1 = nn.Linear(n * long * lat, 16*16)
+        indices = [[], []]
         values = []
-        for j in range(long * lat):
-            indecies[0].append(j)
-            indecies[1].append(j)
-            values.append(1)
-        for i in range(lat + 1, (long - 1) * lat - 1):
-            x = i
-            for y in (i - 1, i + 1, i + lat, i - lat, i + lat - 1, i + lat + 1, i - lat - 1, i - lat + 1):
-                indecies[0].append(x)
-                indecies[1].append(y)
-            for y in (i - 1, i + 1, i + lat, i - lat, i + lat - 1, i + lat + 1, i - lat - 1, i - lat + 1):
-                indecies[0].append(y)
-                indecies[1].append(x)
-            for i in range(16):
+        for k in range(n):
+            for j in range(long * lat):
+                indices[0].append(k + j)
+                indices[1].append(k + j)
+                indices[0].append(k + j)
+                indices[1].append(j)
+                indices[1].append(k + j)
+                indices[0].append(j)
                 values.append(1)
+                values.append(1)
+                values.append(1)
+            for i in range(lat + 1, (long - 1) * lat - 1):
+                x = i
+                for y in k + np.array([i - 1, i + 1, i + lat, i - lat, i + lat - 1,
+                                       i + lat + 1, i - lat - 1, i - lat + 1]):
+                    indices[0].append(x)
+                    indices[1].append(y)
+                for y in k + np.array([i - 1, i + 1, i + lat, i - lat, i + lat - 1,
+                                       i + lat + 1, i - lat - 1, i - lat + 1]):
+                    indices[0].append(y)
+                    indices[1].append(x)
+                for _ in range(16):
+                    values.append(1)
 
-        indecies = torch.Tensor(indecies)
+        indices = torch.Tensor(indices)
         values = torch.Tensor(values)
-        self.A1 = torch.sparse_coo_tensor(indecies, values, (long * lat, long * lat))
+        self.A1 = torch.sparse_coo_tensor(indices, values, (n * long * lat, n * long * lat))
         self.A1 = self.A1.float()
 
     def forward(self, x):
@@ -122,10 +135,4 @@ def test(model, test_dl: torch.utils.data.DataLoader, metrics: list, metrics_fun
         for xt, yt in test_dl:
             predictions.append(model(xt))
             true_values.append(yt)
-            #plt.figure(figsize=(10, 5))
-            #plt.imshow(xt.numpy()[0], cmap='hot', interpolation='nearest')
-            #plt.show()
-            #print(f"target: {yt.item()}, prediction: {model(xt).item()}")
-        #for metric in metrics:
-        #    metrics_values[metric] = metrics_funcs[metric](predictions, true_values)
-    return predictions, true_values#, metrics_values
+    return predictions, true_values
