@@ -132,8 +132,9 @@ def get_nps(feature_names, path_to_tifs, dset_num=0):
 
 
 TARGET_PATH = "data/ojdamage_rus.xls"
+DATA_PATH = "data/Krasnodarskiy"
 REGION = "Субъект Российской Федерации "
-CUR_REGION = "Тамбовская область"
+CUR_REGION = "Москва"
 EVENTNAME_COL = "Название явления "
 STARTDATE = "Дата начала "
 EVENTTYPE = "Град"
@@ -143,45 +144,84 @@ TARGET = "target"
 
 
 def get_traindl(
-        forecasting_period: tuple,
-        feature_names: str,
-        data_path: str,
+        forecasting_period: tuple = None,
+        feature_names: str = None,
+        data_path: str = DATA_PATH,
         target_path: str = TARGET_PATH,
         batch_size: int = 4,
-        sequence_length: int = 12,
+        sequence_length: int = 24,
         long: int = 234,
-        lat: int = 364
+        lat: int = 364,
+        freq: str = "Hourly"
 ):
     xs = []
-    for feature_name in feature_names:
-        x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
-        x = x[feature_name]
-        for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-            numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
-            x = np.concatenate((x, numpys[feature_name]))
+    if freq == "Hourly":
+        hail_path = data_path + "/Hail/"
+        no_hail_path = data_path + "/No Hail/"
+        hail_paths = glob.glob(hail_path + "*")
+        no_hail_paths = glob.glob(no_hail_path + "*")
+        i = 0
+        for p in hail_paths[1:]:
+            if i == 15:
+                break
+            else:
+                i += 1
+            x = get_nps([feature_names[0]], p + "/*")
+            x = x[feature_names[0]]
+            x = np.expand_dims(x, axis=1)
+            for feature_name in feature_names[1:]:
+                numpys = get_nps([feature_name], p + "/*")
+                x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+            x = torch.from_numpy(x)
+            x = x.long()
+            xs.append(x.unsqueeze(dim=0))
+        for p in no_hail_paths[1:]:
+            x = get_nps([feature_names[0]], p + "/*")
+            x = x[feature_names[0]]
+            for feature_name in feature_names[1:]:
+                numpys = get_nps([feature_name], p + "/*")
+                x = np.concatenate((x, numpys[feature_name]))
+            x = torch.from_numpy(x)
+            x = x.long()
+            xs.append(x)
 
+        x = torch.cat(xs, dim=0)
+        return x
+        target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
+        y = torch.tensor(target).float()
+        train_ds = TensorDataset(x, y)
+        train_dl = DataLoader(train_ds, batch_size)
 
-        x = torch.from_numpy(x)
-        x = x.long()
-        tensors = []
-        for i in range(x.shape[0] - sequence_length):
-            tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
+        return train_dl, x
 
-        x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
-        torch.cat(tensors, out=x)
-        x = x.unsqueeze(dim=2)
-        xs.append(x)
-    x = torch.cat(xs, dim=2)
+    else:
+        for feature_name in feature_names:
+            x = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{forecasting_period[0]}/*.tif")
+            x = x[feature_name]
+            for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
+                numpys = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{year}/*.tif")
+                x = np.concatenate((x, numpys[feature_name]))
 
-    target = get_target(forecasting_period, target_path)
-    y = target.to_numpy()
-    y = torch.from_numpy(y).float()
-    y = y[sequence_length:]
+            x = torch.from_numpy(x)
+            x = x.long()
+            tensors = []
+            for i in range(x.shape[0] - sequence_length):
+                tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
 
-    train_ds = TensorDataset(x, y)
-    train_dl = DataLoader(train_ds, batch_size)
+            x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
+            torch.cat(tensors, out=x)
+            x = x.unsqueeze(dim=2)
+            xs.append(x)
+        x = torch.cat(xs, dim=2)
 
-    return train_dl
+        target = get_target(forecasting_period, target_path, freq=freq)
+        y = target.to_numpy()
+        y = torch.from_numpy(y).float()
+        y = y[sequence_length:]
+        train_ds = TensorDataset(x, y)
+        train_dl = DataLoader(train_ds, batch_size)
+
+        return train_dl, x
 
 
 def get_testdl(
@@ -192,14 +232,15 @@ def get_testdl(
         batch_size: int = 1,
         sequence_length: int = 12,
         long: int = 234,
-        lat: int = 364
+        lat: int = 364,
+        freq: str = "Monthly"
 ):
     xs = []
     for feature_name in feature_names:
-        x = get_nps([feature_name], data_path + f"/{forecasting_period[0]}/*.tif")
+        x = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{forecasting_period[0]}/*.tif")
         x = x[feature_name]
         for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-            numpys = get_nps([feature_name], data_path + f"/{year}/*.tif")
+            numpys = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{year}/*.tif")
             x = np.concatenate((x, numpys[feature_name]))
 
         x = torch.from_numpy(x)
@@ -214,7 +255,7 @@ def get_testdl(
         xs.append(x)
     x = torch.cat(xs, dim=2)
 
-    target = get_target(forecasting_period, target_path)
+    target = get_target(forecasting_period, target_path, freq=freq)
     y = target.to_numpy()
     y = torch.from_numpy(y).float()
     y = y[sequence_length:]
@@ -230,20 +271,37 @@ def short_date_format(row):
     return row
 
 
-def get_target(forecasting_period: tuple, data_path: str = TARGET_PATH, region: str = CUR_REGION):
+def get_target(forecasting_period: tuple,
+               data_path: str = TARGET_PATH,
+               region: str = CUR_REGION,
+               freq: str = "Monthly"
+               ):
+
     data = pd.read_excel(data_path)
     hail_data = data[data[EVENTNAME_COL] == EVENTTYPE].reset_index().drop(columns="index")[[STARTDATE, REGION]]
     hail_data = hail_data[hail_data[REGION] == region].reset_index().drop(columns="index")
-    hail_data[STARTDATE] = hail_data[[STARTDATE]].apply(short_date_format, axis=1)
+    if freq == "Monthly":
+        print("Hello, motherfucker!!!")
+        hail_data[STARTDATE] = hail_data[[STARTDATE]].apply(short_date_format, axis=1)
     hail_data = hail_data.drop_duplicates()
-    hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%m.%Y")  # , dayfirst = True)
+    if freq == "Monthly":
+        hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%m.%Y")  # , dayfirst = True)
+    elif freq == "Daily":
+        print("Hello, motherfucker!!!")
+        hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%d.%m.%Y")  # , dayfirst = True)
     hail_data = hail_data.sort_values(by=[STARTDATE])
     hail_data = hail_data.drop(columns=[REGION])
     hail_data[TARGET] = np.ones(hail_data.shape[0], dtype=int)
     hail_data = hail_data.set_index([STARTDATE])
-    idx = pd.date_range(
-        pd.to_datetime(f"01.{forecasting_period[0]}", format="%m.%Y"),
-        pd.to_datetime(f"12.{forecasting_period[1]}", format="%m.%Y"),
-        freq='MS')
+    if freq == "Monthly":
+        idx = pd.date_range(
+            pd.to_datetime(f"01.{forecasting_period[0]}", format="%m.%Y"),
+            pd.to_datetime(f"12.{forecasting_period[1]}", format="%m.%Y"),
+            freq='MS')
+    elif freq == "Daily":
+        idx = pd.date_range(
+            pd.to_datetime(f"01.01.{forecasting_period[0]}", format="%d.%m.%Y"),
+            pd.to_datetime(f"31.12.{forecasting_period[1]}", format="%d.%m.%Y"),
+            freq='D')
     hail_data = hail_data.reindex(idx, fill_value=0)
     return hail_data

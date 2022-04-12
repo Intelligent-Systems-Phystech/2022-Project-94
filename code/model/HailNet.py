@@ -9,13 +9,13 @@ class GNNLayer(nn.Module):
     r"""
         Graph layer for HailNet
     """
-    def __init__(self, n, long, lat):
+    def __init__(self, n, long, lat, output_size=16):
         super().__init__()
-        self.lin1 = nn.Linear(n * long * lat, 16*16)
+        self.lin1 = nn.Linear(n * long * lat, output_size*output_size)
         indices = [[], []]
         values = []
         for k in range(n):
-            for j in range(long * lat):
+            for j in range(long * lat, step=3):
                 indices[0].append(k + j)
                 indices[1].append(k + j)
                 indices[0].append(k + j)
@@ -25,7 +25,7 @@ class GNNLayer(nn.Module):
                 values.append(1)
                 values.append(1)
                 values.append(1)
-            for i in range(lat + 1, (long - 1) * lat - 1):
+            for i in range(lat + 1, (long - 1) * lat - 1, step=3):
                 x = i
                 for y in k + np.array([i - 1, i + 1, i + lat, i - lat, i + lat - 1,
                                        i + lat + 1, i - lat - 1, i - lat + 1]):
@@ -52,7 +52,7 @@ class GNNLayer(nn.Module):
 
 
 class HailNet(nn.Module):
-    def __init__(self, n, long, lat, gru_hidden_size, gru_num_layers, lin1_size=16, seq_len=12, units=None):
+    def __init__(self, n, long, lat, gru_hidden_size, gru_num_layers, lin1_size=16, seq_len=24, units=None):
         super().__init__()
         self.n = n
         self.long = long
@@ -64,6 +64,12 @@ class HailNet(nn.Module):
         self.units = units
         self.embedding_layer = GNNLayer(n, long, lat)
         self.lin1 = nn.Linear(self.lin1_size * self.lin1_size, self.lin1_size * self.lin1_size)
+        # отредактировать и отладить сверточные слои
+        self.conv2d1 = nn.Conv2d(in_channels=n, out_channels=5, kernel_size=3, stride=1, padding=0)
+        self.conv2d2 = nn.Conv2d(in_channels=n, out_channels=5, kernel_size=5, stride=1, padding=0)
+        self.conv2d3 = nn.Conv2d(in_channels=n, out_channels=5, kernel_size=11, stride=1, padding=0)
+        self.conv3d1 = nn.Conv3d()
+        # отредактировать и отладить сверточные слои
         self.gru = nn.GRU(
             input_size=self.lin1_size * self.lin1_size,
             hidden_size=self.gru_hidden_size,
@@ -89,7 +95,7 @@ class HailNet(nn.Module):
         return net
 
     def forward(self, x):
-        # x -> (n, seq_len, long, lat)
+        # x -> (n_batch, seq_len, n_vars, long, lat)
         h0 = torch.randn(self.gru_num_layers, x.size(0), self.gru_hidden_size)  # hidden cell for gru
         hs1 = []
         for i in range(self.seq_len):
@@ -98,9 +104,22 @@ class HailNet(nn.Module):
             t3 = self.lin1(t2)
             t4 = torch.sigmoid(t3)
             t4 = t4.unsqueeze(dim=1)
-            hs1.append(t4)
+            # отредактировать и отладить сверточные слои
+            c3d = self.conv3d(x[:, i])
+            c2d1 = self.conv2d1(x[:, i])
+            c2d2 = self.conv2d2(x[:, i])
+            c2d3 = self.conv2d3(x[:, i])
+            h = torch.cat([t4,
+                           c3d,
+                           c2d1.reshape(x.shape[0], self.seq_len, -1),
+                           c2d2.reshape(x.shape[0], self.seq_len, -1),
+                           c2d3.reshape(x.shape[0], self.seq_len, -1)
+                           ])
+            # отредактировать и отладить сверточные слои
+            hs1.append(h)
+
         t = torch.cat(hs1, dim=1)
-        # t -> (bacth_size, seq_len, lin1*lin1)
+        # t -> (bacth_size, seq_len, lin1*lin1 + c3d.shape)
         out, _ = self.gru(t, h0)
         out = out[:, -1, :]
         out = self.fully_connected_layer(out)
