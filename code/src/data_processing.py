@@ -144,15 +144,17 @@ TARGET = "target"
 
 
 def get_traindl(
-        forecasting_period: tuple = None,
-        feature_names: str = None,
+        forecasting_period: tuple = (2000, 2007),
+        feature_names: list = None,
         data_path: str = DATA_PATH,
         target_path: str = TARGET_PATH,
         batch_size: int = 4,
         sequence_length: int = 24,
         long: int = 234,
         lat: int = 364,
-        freq: str = "Hourly"
+        freq: str = "Hourly",
+        eco: bool = True,
+        eco_len: int = 15
 ):
     xs = []
     if freq == "Hourly":
@@ -162,7 +164,7 @@ def get_traindl(
         no_hail_paths = glob.glob(no_hail_path + "*")
         i = 0
         for p in hail_paths[1:]:
-            if i == 15:
+            if eco is True and i == eco_len:
                 break
             else:
                 i += 1
@@ -178,6 +180,10 @@ def get_traindl(
         for p in no_hail_paths[1:]:
             x = get_nps([feature_names[0]], p + "/*")
             x = x[feature_names[0]]
+            if eco is True and i == eco_len:
+                break
+            else:
+                i += 1
             for feature_name in feature_names[1:]:
                 numpys = get_nps([feature_name], p + "/*")
                 x = np.concatenate((x, numpys[feature_name]))
@@ -186,8 +192,11 @@ def get_traindl(
             xs.append(x)
 
         x = torch.cat(xs, dim=0)
-        return x
-        target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
+        # return x
+        if eco is True:
+            target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
+        else:
+            target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
         y = torch.tensor(target).float()
         train_ds = TensorDataset(x, y)
         train_dl = DataLoader(train_ds, batch_size)
