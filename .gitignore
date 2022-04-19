@@ -121,6 +121,6 @@ logs/
 *.csv
 !.dvc
 
-*.tif
+
 
 /code/data
