@@ -127,12 +127,12 @@ def get_nps(feature_names, path_to_tifs, dset_num=0):
   #getting mean temp if accessible
   if 'tmin' in feature_names and 'tmax' in feature_names:
     nps['tmean'] = (nps['tmax'] + nps['tmin']) / 2
-
+  
   return nps
 
 
 TARGET_PATH = "data/ojdamage_rus.xls"
-DATA_PATH = "data/Krasnodarskiy"
+DATA_PATH = "HailProject/code/data"
 REGION = "Субъект Российской Федерации "
 CUR_REGION = "Москва"
 EVENTNAME_COL = "Название явления "
@@ -154,16 +154,37 @@ def get_traindl(
         lat: int = 364,
         freq: str = "Hourly",
         eco: bool = True,
-        eco_len: int = 15
+        eco_len: int = 15,
+        train: bool = True
 ):
     xs = []
     if freq == "Hourly":
-        hail_path = data_path + "/Hail/"
-        no_hail_path = data_path + "/No Hail/"
+        if train:
+            hail_path = data_path + "/train/Hail/"
+            no_hail_path = data_path + "/train/No Hail/"
+        else:
+            hail_path = data_path + "/test/Hail/"
+            no_hail_path = data_path + "/test/No Hail/"
         hail_paths = glob.glob(hail_path + "*")
         no_hail_paths = glob.glob(no_hail_path + "*")
         i = 0
-        for p in hail_paths[1:]:
+        for p in hail_paths:
+            if eco is True and i == eco_len:
+                break
+            else:
+                i += 1
+            x = get_nps([feature_names[0]], p + "/*")
+            x = x[feature_names[0]]
+            x = np.nan_to_num(x)
+            x = np.expand_dims(x, axis=1)
+            for feature_name in feature_names[1:]:
+                numpys = get_nps([feature_name], p + "/*")
+                x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+            x = torch.from_numpy(x)
+            x = x.long()
+            xs.append(x.unsqueeze(dim=0))
+            
+        for p in no_hail_paths:
             if eco is True and i == eco_len:
                 break
             else:
@@ -177,29 +198,16 @@ def get_traindl(
             x = torch.from_numpy(x)
             x = x.long()
             xs.append(x.unsqueeze(dim=0))
-        for p in no_hail_paths[1:]:
-            x = get_nps([feature_names[0]], p + "/*")
-            x = x[feature_names[0]]
-            if eco is True and i == eco_len:
-                break
-            else:
-                i += 1
-            for feature_name in feature_names[1:]:
-                numpys = get_nps([feature_name], p + "/*")
-                x = np.concatenate((x, numpys[feature_name]))
-            x = torch.from_numpy(x)
-            x = x.long()
-            xs.append(x)
-
+        
         x = torch.cat(xs, dim=0)
         # return x
         if eco is True:
             target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
         else:
             target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
-        y = torch.tensor(target).float()
+        y = torch.tensor(target).float().reshape(-1, 1)
         train_ds = TensorDataset(x, y)
-        train_dl = DataLoader(train_ds, batch_size)
+        train_dl = DataLoader(train_ds, batch_size, shuffle=True)
 
         return train_dl, x
 
@@ -314,3 +322,17 @@ def get_target(forecasting_period: tuple,
             freq='D')
     hail_data = hail_data.reindex(idx, fill_value=0)
     return hail_data
+
+def optimizer_to(optim, device):
+    for param in optim.state.values():
+        # Not sure there are any global tensors in the state dict
+        if isinstance(param, torch.Tensor):
+            param.data = param.data.to(device)
+            if param._grad is not None:
+                param._grad.data = param._grad.data.to(device)
+        elif isinstance(param, dict):
+            for subparam in param.values():
+                if isinstance(subparam, torch.Tensor):
+                    subparam.data = subparam.data.to(device)
+                    if subparam._grad is not None:
+                        subparam._grad.data = subparam._grad.data.to(device)
