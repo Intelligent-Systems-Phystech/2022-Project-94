@@ -12,45 +12,45 @@ from torch.utils.data import DataLoader
 
 
 def get_file_paths(path_to_data: str = 'drive/MyDrive/Belgorodskaya/*.tif', feature_names: list = ['tmax', 'tmin', 'pr']):
-  """
-  Filters out required features amongs terraclim dataset
+    """
+    Filters out required features amongs terraclim dataset
 
-  Arguments:
+    Arguments:
     path_to_data (str): path to directory that containts terraclim dataset
     feature_names (list): list of required features
-    
-  Returns:
+
+    Returns:
     dict: key -- feature name; value -- list of related tif files
-  """
-  files_to_mosaic = glob.glob(path_to_data)
-  files_to_mosaic = list(filter(lambda x: sum(fn in x for fn in feature_names) > 0, files_to_mosaic))
-  file_paths = {fn: list(filter(lambda x: fn in x, files_to_mosaic)) for fn in feature_names}
-  return file_paths
+    """
+    files_to_mosaic = glob.glob(path_to_data)
+    files_to_mosaic = list(filter(lambda x: sum(fn in x for fn in feature_names) > 0, files_to_mosaic))
+    file_paths = {fn: list(filter(lambda x: fn in x, files_to_mosaic)) for fn in feature_names}
+    return file_paths
 
 
 def get_coords_res(dataset: gdal.Dataset):
-  """
-  For given dataset returns position of top left corner and resolutions
+    """
+    For given dataset returns position of top left corner and resolutions
 
-  Arguments:
+    Arguments:
     dataset (osgeo.gdal.Dataset): gdal dataset
 
-  Returns:
+    Returns:
     dict: containts coordinates of top left corner and
        resolutions alog x and y axes
-  """
-  gt = dataset.GetGeoTransform()
-  output = {}
-  output["x"] = gt[0]
-  output["y"] = gt[3]
-  output["x_res"] = gt[1]
-  output["y_res"] = gt[-1]
-  return output
+    """
+    gt = dataset.GetGeoTransform()
+    output = {}
+    output["x"] = gt[0]
+    output["y"] = gt[3]
+    output["x_res"] = gt[1]
+    output["y_res"] = gt[-1]
+    return output
 
 
 def plot_tl_positions(file_paths: list):
   """
-  Viualize positions of top left corners of dataset given 
+  Viualize positions of top left corners of dataset given
 
   Arguments:
   file_paths (list): list of paths to files that contain datasets
@@ -58,12 +58,12 @@ def plot_tl_positions(file_paths: list):
   tlxs = []
   tlys = []
   for fp in tqdm(file_paths):
-    dataset = gdal.Open(fp, gdal.GA_ReadOnly) 
+    dataset = gdal.Open(fp, gdal.GA_ReadOnly)
     if dataset is not None:
       coords_dict = get_coords_res(dataset)
       tlxs.append(coords_dict['x'])
       tlys.append(coords_dict['y'])
-                          
+
   fig, ax = plt.subplots()
   fig.set_figheight(15)
   fig.set_figwidth(15)
@@ -90,14 +90,14 @@ def dataset_to_np(dataset: gdal.Dataset, x_off: int, y_off: int, xsize: int, ysi
   Returns:
     np.ndarray -- 3d tensor of information given in dataset
   """
-  
+
   shape = [dataset.RasterCount, ysize, xsize]
   output = np.empty(shape)
   for r_idx in range(shape[0]):
     band = dataset.GetRasterBand(r_idx + 1)
     arr = band.ReadAsArray(x_off, y_off, xsize, ysize)
     output[r_idx, :, :] = np.array(arr)
-  
+
   return output
 
 

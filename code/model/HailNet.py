@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 import numpy as np
+import glob
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from torchvision import transforms
@@ -66,10 +68,10 @@ class HailNet(nn.Module):
         self.rnn_num_layers = rnn_num_layers
         self.seq_len = seq_len
         self.lin0 = nn.Linear(n * long * lat, 256)
-        self.lin1 = nn.Linear(256 , 1024)
+        self.lin1 = nn.Linear(256, 1024)
         self.conv2d1 = nn.Conv2d(in_channels=n, out_channels=n, kernel_size=50, stride=1, padding=0)
-        self.lin2 = nn.Linear(1024 + (self.long - 49) * (self.lat - 49) * self.n , 1024)
-        self.lin3 = nn.Linear(1024 , 1)
+        self.lin2 = nn.Linear(1024 + (self.long - 49) * (self.lat - 49) * self.n, 1024)
+        self.lin3 = nn.Linear(1024, 1)
         self.lstm = nn.LSTM(
             input_size=int(1024),
             hidden_size=1024,
@@ -80,37 +82,38 @@ class HailNet(nn.Module):
     def forward(self, x):
         # x -> (n_batch, seq_len, n_vars, long, lat)
         h0 = torch.randn(self.rnn_num_layers, x.size(0), 1024).to(self.device)  # hidden cell for rnn
-        c0 = torch.randn(self.rnn_num_layers, x.size(0), 1024).to(self.device)  # hidden cell for gru
+        c0 = torch.randn(self.rnn_num_layers, x.size(0), 1024).to(self.device)  # hidden cell for rnn
         hs1 = []
 
         for i in range(self.seq_len):
             t0 = x[:, i].float()
             t1 = self.lin0(t0.flatten(start_dim=1))
             t2 = torch.sigmoid(t1)
-            t3 = self.lin1(t2) 
+            t3 = self.lin1(t2)
             t4 = torch.sigmoid(t3)
             c2d1 = self.conv2d1(t0)
-            h = torch.cat([t4,
-                           c2d1.flatten(start_dim = 1)
-                           ],
-                           dim=1)
+            h = torch.cat([t4, c2d1.flatten(start_dim=1)], dim=1)
             h = h.unsqueeze(dim=1)
             hs1.append(h)
 
         t = torch.cat(hs1, dim=1)
-        # t -> (bacth_size, seq_len, lin1*lin1 + c3d.shape)
+        # t -> (batch_size, seq_len, lin1*lin1 + c3d.shape)
         t = self.lin2(t)
         out, _ = self.lstm(t, (h0, c0))
-        
+
         out = out[:, -1, :]
-        
+
         out = self.lin3(out)
         out = torch.sigmoid(out)
-        
+
         return out
 
 
-def train(num_epochs: int, model, loss_fn, opt, train_dl: torch.utils.data.DataLoader):
+def train(num_epochs: int,
+          model,
+          loss_fn,
+          opt,
+          train_dl: torch.utils.data.DataLoader):
     losses = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
@@ -122,7 +125,7 @@ def train(num_epochs: int, model, loss_fn, opt, train_dl: torch.utils.data.DataL
             opt.zero_grad()
             loss = loss_fn(pred, yb)
             loss.backward()
-            
+
             opt.step()
 
         losses.append(loss.detach().item())
@@ -130,7 +133,10 @@ def train(num_epochs: int, model, loss_fn, opt, train_dl: torch.utils.data.DataL
     return losses
 
 
-def test(model, test_dl: torch.utils.data.DataLoader, metrics: list, metrics_funcs: dict):
+def test(model,
+         test_dl: torch.utils.data.DataLoader,
+         metrics: list,
+         metrics_funcs: dict):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     with torch.no_grad():
         model.eval()
@@ -142,3 +148,37 @@ def test(model, test_dl: torch.utils.data.DataLoader, metrics: list, metrics_fun
             predictions.append(model(xt))
             true_values.append(yt)
     return predictions, true_values
+
+
+def test_lazy_load(model,
+                   test_data_path: str,
+                   metrics: list,
+                   metrics_funcs: dict,
+                   feature_names: list,
+                   get_tensors: callable):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    with torch.no_grad():
+        model.eval()
+        predictions = []
+        true_values = []
+        metrics_values = {}.fromkeys(metrics)
+        hail_path = test_data_path + "/Hail/"
+        no_hail_path = test_data_path + "/No Hail/"
+        hail_paths = glob.glob(hail_path + "*")
+        no_hail_paths = glob.glob(no_hail_path + "*")
+        for i, p in tqdm(enumerate(hail_paths + no_hail_paths)):
+            x = get_tensors([feature_names[0]], p + "/*")
+            x = x[feature_names[0]]
+            x = np.nan_to_num(x)
+            x = np.expand_dims(x, axis=1)
+            for feature_name in feature_names[1:]:
+                numpys = get_tensors([feature_name], p + "/*")
+                x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+            x = torch.from_numpy(x)
+            x = x.long().unsqueeze(dim=0)
+            predictions.append(model(x))
+            if i <= len(hail_paths):
+                true_values.append(1)
+            else:
+                true_values.append(0)
+        return predictions, true_values
