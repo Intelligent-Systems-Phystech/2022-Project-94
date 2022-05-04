@@ -163,7 +163,7 @@ def test_lazy_load(model,
         true_values = []
         metrics_values = {}.fromkeys(metrics)
         hail_path = test_data_path + "/Hail/"
-        no_hail_path = test_data_path + "/No Hail/"
+        no_hail_path = test_data_path + "/No hail/"
         hail_paths = glob.glob(hail_path + "*")
         no_hail_paths = glob.glob(no_hail_path + "*")
         for i, p in tqdm(enumerate(hail_paths + no_hail_paths)):
@@ -175,7 +175,7 @@ def test_lazy_load(model,
                 numpys = get_tensors([feature_name], p + "/*")
                 x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
             x = torch.from_numpy(x)
-            x = x.long().unsqueeze(dim=0)
+            x = x.long().unsqueeze(dim=0).to(device)
             predictions.append(model(x))
             if i <= len(hail_paths):
                 true_values.append(1)
