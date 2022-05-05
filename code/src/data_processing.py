@@ -143,7 +143,7 @@ YEAR_COL = "Year"
 TARGET = "target"
 
 
-def get_DataLoader(
+def get_dataloader(
         feature_names: list = None,
         data_path: str = DATA_PATH,
         batch_size: int = 4,
