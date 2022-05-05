@@ -143,147 +143,66 @@ YEAR_COL = "Year"
 TARGET = "target"
 
 
-def get_traindl(
-        forecasting_period: tuple = (2000, 2007),
+def get_DataLoader(
         feature_names: list = None,
         data_path: str = DATA_PATH,
-        target_path: str = TARGET_PATH,
         batch_size: int = 4,
-        sequence_length: int = 24,
-        long: int = 234,
-        lat: int = 364,
-        freq: str = "Hourly",
         eco: bool = True,
-        eco_len: int = 15,
+        eco_len: int = 5,
         train: bool = True
 ):
     xs = []
-    if freq == "Hourly":
-        if train:
-            hail_path = data_path + "/train/Hail/"
-            no_hail_path = data_path + "/train/No Hail/"
-        else:
-            hail_path = data_path + "/test/Hail/"
-            no_hail_path = data_path + "/test/No Hail/"
-        hail_paths = glob.glob(hail_path + "*")
-        no_hail_paths = glob.glob(no_hail_path + "*")
-        i = 0
-        for p in hail_paths:
-            if eco is True and i == eco_len:
-                break
-            else:
-                i += 1
-            x = get_nps([feature_names[0]], p + "/*")
-            x = x[feature_names[0]]
-            x = np.nan_to_num(x)
-            x = np.expand_dims(x, axis=1)
-            for feature_name in feature_names[1:]:
-                numpys = get_nps([feature_name], p + "/*")
-                x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
-            x = torch.from_numpy(x)
-            x = x.long()
-            xs.append(x.unsqueeze(dim=0))
-            
-        for p in no_hail_paths:
-            if eco is True and i == eco_len:
-                break
-            else:
-                i += 1
-            x = get_nps([feature_names[0]], p + "/*")
-            x = x[feature_names[0]]
-            x = np.expand_dims(x, axis=1)
-            for feature_name in feature_names[1:]:
-                numpys = get_nps([feature_name], p + "/*")
-                x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
-            x = torch.from_numpy(x)
-            x = x.long()
-            xs.append(x.unsqueeze(dim=0))
-        
-        x = torch.cat(xs, dim=0)
-        # may be a problem
-        del xs
-        # may be a problem
-        if eco is True:
-            target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
-        else:
-            target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
-        y = torch.tensor(target).float().reshape(-1, 1)
-        train_ds = TensorDataset(x, y)
-        train_dl = DataLoader(train_ds, batch_size, shuffle=True)
 
-        return train_dl, x
-
+    if train:
+        hail_path = data_path + "/train/Hail/"
+        no_hail_path = data_path + "/train/No Hail/"
     else:
-        for feature_name in feature_names:
-            x = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{forecasting_period[0]}/*.tif")
-            x = x[feature_name]
-            for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-                numpys = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{year}/*.tif")
-                x = np.concatenate((x, numpys[feature_name]))
-
-            x = torch.from_numpy(x)
-            x = x.long()
-            tensors = []
-            for i in range(x.shape[0] - sequence_length):
-                tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
-
-            x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
-            torch.cat(tensors, out=x)
-            x = x.unsqueeze(dim=2)
-            xs.append(x)
-        x = torch.cat(xs, dim=2)
-
-        target = get_target(forecasting_period, target_path, freq=freq)
-        y = target.to_numpy()
-        y = torch.from_numpy(y).float()
-        y = y[sequence_length:]
-        train_ds = TensorDataset(x, y)
-        train_dl = DataLoader(train_ds, batch_size)
-
-        return train_dl, x
-
-
-def get_testdl(
-        forecasting_period: tuple,
-        feature_names: str,
-        data_path: str,
-        target_path: str = TARGET_PATH,
-        batch_size: int = 1,
-        sequence_length: int = 12,
-        long: int = 234,
-        lat: int = 364,
-        freq: str = "Monthly"
-):
-    xs = []
-    for feature_name in feature_names:
-        x = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{forecasting_period[0]}/*.tif")
-        x = x[feature_name]
-        for year in range(forecasting_period[0] + 1, forecasting_period[1] + 1):  # здесь надо +1, не волнуйся
-            numpys = get_nps([feature_name], data_path + "/" + freq + "/" + f"/{year}/*.tif")
-            x = np.concatenate((x, numpys[feature_name]))
-
+        hail_path = data_path + "/test/Hail/"
+        no_hail_path = data_path + "/test/No Hail/"
+    hail_paths = glob.glob(hail_path + "*")
+    no_hail_paths = glob.glob(no_hail_path + "*")
+    i = 0
+    for p in hail_paths:
+        if eco is True and i == eco_len:
+            break
+        else:
+            i += 1
+        x = get_nps([feature_names[0]], p + "/*")
+        x = x[feature_names[0]]
+        x = np.nan_to_num(x)
+        x = np.expand_dims(x, axis=1)
+        for feature_name in feature_names[1:]:
+            numpys = get_nps([feature_name], p + "/*")
+            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
         x = torch.from_numpy(x)
         x = x.long()
-        tensors = []
-        for i in range(x.shape[0] - sequence_length):
-            tensors.append(x[i: i + sequence_length].unsqueeze(dim=0))
+        xs.append(x.unsqueeze(dim=0))
 
-        x = torch.Tensor(x.shape[0] - sequence_length, sequence_length, long, lat)
-        torch.cat(tensors, out=x)
-        x = x.unsqueeze(dim=2)
-        xs.append(x)
-    x = torch.cat(xs, dim=2)
+    for p in no_hail_paths:
+        if eco is True and i == eco_len:
+            break
+        else:
+            i += 1
+        x = get_nps([feature_names[0]], p + "/*")
+        x = x[feature_names[0]]
+        x = np.expand_dims(x, axis=1)
+        for feature_name in feature_names[1:]:
+            numpys = get_nps([feature_name], p + "/*")
+            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+        x = torch.from_numpy(x)
+        x = x.long()
+        xs.append(x.unsqueeze(dim=0))
 
-    target = get_target(forecasting_period, target_path, freq=freq)
-    y = target.to_numpy()
-    y = torch.from_numpy(y).float()
-    y = y[sequence_length:]
+    x = torch.cat(xs, dim=0)
+    if eco is True:
+        target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
+    else:
+        target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
+    y = torch.tensor(target).float().reshape(-1, 1)
+    ds = TensorDataset(x, y)
+    dl = DataLoader(ds, batch_size, shuffle=True)
 
-    test_ds = TensorDataset(x, y)
-    test_dl = DataLoader(test_ds, batch_size)
-
-    return test_dl
-
+    return dl, x
 
 def short_date_format(row):
     row[0] = row[0][3:]
@@ -324,17 +243,3 @@ def get_target(forecasting_period: tuple,
             freq='D')
     hail_data = hail_data.reindex(idx, fill_value=0)
     return hail_data
-
-def optimizer_to(optim, device):
-    for param in optim.state.values():
-        # Not sure there are any global tensors in the state dict
-        if isinstance(param, torch.Tensor):
-            param.data = param.data.to(device)
-            if param._grad is not None:
-                param._grad.data = param._grad.data.to(device)
-        elif isinstance(param, dict):
-            for subparam in param.values():
-                if isinstance(subparam, torch.Tensor):
-                    subparam.data = subparam.data.to(device)
-                    if subparam._grad is not None:
-                        subparam._grad.data = subparam._grad.data.to(device)
