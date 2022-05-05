@@ -200,7 +200,9 @@ def get_traindl(
             xs.append(x.unsqueeze(dim=0))
         
         x = torch.cat(xs, dim=0)
-        # return x
+        # may be a problem
+        del xs
+        # may be a problem
         if eco is True:
             target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
         else:

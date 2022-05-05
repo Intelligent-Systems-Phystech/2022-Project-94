@@ -181,4 +181,4 @@ def test_lazy_load(model,
                 true_values.append(1)
             else:
                 true_values.append(0)
-        return predictions, true_values
+    return predictions, true_values
