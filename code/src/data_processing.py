@@ -149,7 +149,8 @@ def get_dataloader(
         batch_size: int = 4,
         eco: bool = True,
         eco_len: int = 5,
-        train: bool = True
+        train: bool = True,
+        part: int = 1
 ):
     xs = []
 
@@ -161,12 +162,7 @@ def get_dataloader(
         no_hail_path = data_path + "/test/No Hail/"
     hail_paths = glob.glob(hail_path + "*")
     no_hail_paths = glob.glob(no_hail_path + "*")
-    i = 0
-    for p in hail_paths:
-        if eco is True and i == eco_len:
-            break
-        else:
-            i += 1
+    for p in hail_paths[(part - 1) * eco_len : eco_len * part]:        
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.nan_to_num(x)
@@ -177,12 +173,7 @@ def get_dataloader(
         x = torch.from_numpy(x)
         x = x.long()
         xs.append(x.unsqueeze(dim=0))
-
-    for p in no_hail_paths:
-        if eco is True and i == eco_len:
-            break
-        else:
-            i += 1
+    for p in no_hail_paths[(part - 1) * eco_len : eco_len * part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.expand_dims(x, axis=1)
@@ -195,7 +186,7 @@ def get_dataloader(
 
     x = torch.cat(xs, dim=0)
     if eco is True:
-        target = [1 for _ in range(eco_len)] + [0 for _ in range(eco_len)]
+        target = [1 for _ in range(len(hail_paths[(part - 1) * eco_len : eco_len * part]))] + [0 for _ in range(len(no_hail_paths[(part - 1) * eco_len : eco_len * part]))]
     else:
         target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
     y = torch.tensor(target).float().reshape(-1, 1)
