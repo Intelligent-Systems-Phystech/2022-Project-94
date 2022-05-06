@@ -3,6 +3,9 @@ import torch
 
 
 class EVL(nn.Module):
+    r"""
+        EVL loss for classification with imbalanced classes
+    """
     def __init__(self, gamma, beta0,  beta1):
         super().__init__()
         self.gamma = gamma

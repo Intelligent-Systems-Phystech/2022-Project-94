@@ -10,6 +10,7 @@ from torchvision import transforms
 class GNNLayer(nn.Module):
     r"""
         Graph layer for HailNet
+        This layer is not used right now in the HailNet
     """
     def __init__(self, n, long, lat, output_size=16):
         super().__init__()
@@ -57,6 +58,9 @@ class GNNLayer(nn.Module):
 
 
 class HailNet(nn.Module):
+    r"""
+        HailNet - main model
+    """
     def __init__(self, n, long, lat, rnn_hidden_size, rnn_num_layers, lin1_size=16, seq_len=24, units=None):
         super().__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -97,7 +101,6 @@ class HailNet(nn.Module):
             hs1.append(h)
 
         t = torch.cat(hs1, dim=1)
-        # t -> (batch_size, seq_len, lin1*lin1 + c3d.shape)
         t = self.lin2(t)
         out, _ = self.lstm(t, (h0, c0))
 
@@ -114,6 +117,21 @@ def train(num_epochs: int,
           loss_fn,
           opt,
           train_dl: torch.utils.data.DataLoader):
+    r"""
+
+    Args:
+        num_epochs:
+        model:
+        loss_fn:
+        opt:
+        train_dl:
+
+    Returns:
+        losses: list of losses during training
+
+    Training cycle for HailNet
+
+    """
     losses = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
@@ -137,6 +155,21 @@ def test(model,
          test_dl: torch.utils.data.DataLoader,
          metrics: list,
          metrics_funcs: dict):
+    r"""
+
+    Args:
+        model:
+        test_dl:
+        metrics:
+        metrics_funcs:
+
+    Returns:
+        predictions: list of predictions for testing data
+        true_values: list of true labels for testing data
+
+    Testing cycle for HailNet
+
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     with torch.no_grad():
         model.eval()
@@ -156,6 +189,23 @@ def test_lazy_load(model,
                    metrics_funcs: dict,
                    feature_names: list,
                    get_tensors: callable):
+    r"""
+
+    Args:
+        model:
+        test_data_path:
+        metrics:
+        metrics_funcs:
+        feature_names:
+        get_tensors:
+
+    Returns:
+        predictions: list of predictions for testing data
+        true_values: list of true labels for testing data
+
+    Testing cycle for HailNet with loading memory from hard disk
+
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     with torch.no_grad():
         model.eval()

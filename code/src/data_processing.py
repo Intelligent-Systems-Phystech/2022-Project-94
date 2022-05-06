@@ -152,6 +152,23 @@ def get_dataloader(
         train: bool = True,
         part: int = 1
 ):
+    r"""
+
+    Args:
+        feature_names:
+        data_path:
+        batch_size:
+        eco:
+        eco_len:
+        train:
+        part:
+
+    Returns:
+        dl: dataloader with data
+        x: data
+
+    Function for creating dataloader for train and test
+    """
     xs = []
 
     if train:
@@ -195,6 +212,7 @@ def get_dataloader(
 
     return dl, x
 
+
 def short_date_format(row):
     row[0] = row[0][3:]
     return row
@@ -205,7 +223,18 @@ def get_target(forecasting_period: tuple,
                region: str = CUR_REGION,
                freq: str = "Monthly"
                ):
+    r"""
 
+    Args:
+        forecasting_period:
+        data_path:
+        region:
+        freq:
+
+    Returns:
+        hail_data: pandas.DataFrame with dates with hail
+
+    """
     data = pd.read_excel(data_path)
     hail_data = data[data[EVENTNAME_COL] == EVENTTYPE].reset_index().drop(columns="index")[[STARTDATE, REGION]]
     hail_data = hail_data[hail_data[REGION] == region].reset_index().drop(columns="index")
