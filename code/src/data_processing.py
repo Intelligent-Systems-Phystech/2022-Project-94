@@ -182,7 +182,7 @@ def get_dataloader(
     else:
         part = 21           # Оставшиеся 40 + 4 дня для валидации
 
-    for p in hail_paths[(part - 1) * 10 : 10 * part]:
+    for p in hail_paths[(part - 1) * 10: 10 * part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.nan_to_num(x)
@@ -194,7 +194,7 @@ def get_dataloader(
         x = x.long()
         xs.append(x.unsqueeze(dim=0))
 
-    for p in no_hail_paths[(part - 1) *  : 2 * part]:
+    for p in no_hail_paths[(part - 1): part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.expand_dims(x, axis=1)
