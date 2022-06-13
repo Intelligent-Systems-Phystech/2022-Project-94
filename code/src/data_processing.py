@@ -171,15 +171,18 @@ def get_dataloader(
     """
     xs = []
 
-    if train:
-        hail_path = data_path + "/train/Hail/"
-        no_hail_path = data_path + "/train/No Hail/"
-    else:
-        hail_path = data_path + "/test/Hail/"
-        no_hail_path = data_path + "/test/No Hail/"
+    hail_path = data_path + "/Hail/"
+    no_hail_path = data_path + "/No Hail/"
+
     hail_paths = glob.glob(hail_path + "*")
     no_hail_paths = glob.glob(no_hail_path + "*")
-    for p in hail_paths[(part - 1) * eco_len : eco_len * part]:        
+
+    if train:
+        part = 1            # Первые 200 + 20 дней для обучения
+    else:
+        part = 21           # Оставшиеся 40 + 4 дня для валидации
+
+    for p in hail_paths[(part - 1) * 10 : 10 * part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.nan_to_num(x)
@@ -190,7 +193,8 @@ def get_dataloader(
         x = torch.from_numpy(x)
         x = x.long()
         xs.append(x.unsqueeze(dim=0))
-    for p in no_hail_paths[(part - 1) * eco_len : eco_len * part]:
+
+    for p in no_hail_paths[(part - 1) *  : 2 * part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.expand_dims(x, axis=1)
@@ -239,13 +243,11 @@ def get_target(forecasting_period: tuple,
     hail_data = data[data[EVENTNAME_COL] == EVENTTYPE].reset_index().drop(columns="index")[[STARTDATE, REGION]]
     hail_data = hail_data[hail_data[REGION] == region].reset_index().drop(columns="index")
     if freq == "Monthly":
-        print("Hello, motherfucker!!!")
         hail_data[STARTDATE] = hail_data[[STARTDATE]].apply(short_date_format, axis=1)
     hail_data = hail_data.drop_duplicates()
     if freq == "Monthly":
         hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%m.%Y")  # , dayfirst = True)
     elif freq == "Daily":
-        print("Hello, motherfucker!!!")
         hail_data[STARTDATE] = pd.to_datetime(hail_data[STARTDATE], format="%d.%m.%Y")  # , dayfirst = True)
     hail_data = hail_data.sort_values(by=[STARTDATE])
     hail_data = hail_data.drop(columns=[REGION])
@@ -262,4 +264,4 @@ def get_target(forecasting_period: tuple,
             pd.to_datetime(f"31.12.{forecasting_period[1]}", format="%d.%m.%Y"),
             freq='D')
     hail_data = hail_data.reindex(idx, fill_value=0)
-    return hail_data
+    return hail_data, data
