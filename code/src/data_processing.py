@@ -177,12 +177,7 @@ def get_dataloader(
     hail_paths = glob.glob(hail_path + "*")
     no_hail_paths = glob.glob(no_hail_path + "*")
 
-    if train:
-        part = 1            # Первые 200 + 20 дней для обучения
-    else:
-        part = 21           # Оставшиеся 40 + 4 дня для валидации
-
-    for p in hail_paths[(part - 1) * 10: 10 * part]:
+    for p in hail_paths[(part - 1): part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.nan_to_num(x)
@@ -194,7 +189,7 @@ def get_dataloader(
         x = x.long()
         xs.append(x.unsqueeze(dim=0))
 
-    for p in no_hail_paths[(part - 1): part]:
+    for p in no_hail_paths[(part - 1) * 10: 10 * part]:
         x = get_nps([feature_names[0]], p + "/*")
         x = x[feature_names[0]]
         x = np.expand_dims(x, axis=1)
@@ -207,7 +202,8 @@ def get_dataloader(
 
     x = torch.cat(xs, dim=0)
     if eco is True:
-        target = [1 for _ in range(len(hail_paths[(part - 1) * eco_len : eco_len * part]))] + [0 for _ in range(len(no_hail_paths[(part - 1) * eco_len : eco_len * part]))]
+        target = [1 for _ in range(len(hail_paths[(part - 1):  part]))] + \
+                 [0 for _ in range(len(no_hail_paths[(part - 1) * 10: 10 * part]))]
     else:
         target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
     y = torch.tensor(target).float().reshape(-1, 1)
