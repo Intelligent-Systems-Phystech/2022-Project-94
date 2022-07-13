@@ -415,21 +415,26 @@ def prepare_full_train_data(aerology_path: str,
     land_paths = glob.glob(land_path + "/*.grib")
     runoff_paths = glob.glob(runoff_path + "/*.grib")
     full_train_days = []
-    for a_path, l_path in zip(land_paths, aerology_paths):
+    for a_path, l_path, ro_path in zip(land_paths, aerology_paths, runoff_paths):
         full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
                                                prepare_train_data(a_path, one_day),
-                                               prepare_runoff(runoff_path, one_day)], axis=1))
+                                               prepare_runoff(ro_path, one_day)], axis=1))
     extra_feature_data = np.expand_dims(prepare_extra_feature(extra_feature_path), axis=1)
     full_train_days.append(extra_feature_data)
     full_train_days = np.concatenate(full_train_days, axis=0)
     return full_train_days
 
-###################################################################################################################
-#       Data preparation - fitting pipeline.                                                                      #
-#                                                                                                                 #
-#   1)<gribs paths> --> prepare_full_train_data() --> <tensors with dimension: (n_days, n_features, long, lat)>-->#
-#   --> train_model() --> <pretrained model>;                                                                     #
-#   2)<cmips path> --> prepare_full_test_data() --> <tensors with dimension: (n_days, n_features, long, lat)>;    #
-#   3)<tensors with dimension: (n_days, n_features, long, lat)> & <pretrained model> --> inference_model()        #
-#                                                                                                                 #
-###################################################################################################################
+#####################################################################################################################
+#       Data preparation - fitting pipeline.                                                                        #
+#                                                                                                                   #
+#   1)<gribs paths> --> prepare_full_train_data() --> <tensors with dimension: (n_days, n_features, lat, long)> --> #
+#   --> train_model() --> <pretrained model>;                                                                       #
+#                                                                                                                   #
+#   2)<cmips path> --> prepare_full_cmip_data() --> <tensors with dimension: (n_days, n_features, lat, long)>;      #
+#                                                                                                                   #
+#   3)prepare_target_grid() --> <grid with dimension: (n_days, lat, long)>                                          #
+#                                                                                                                   #
+#   4)<tensors with dimension: (n_days, n_features, long, lat)> & <pretrained model> &                              #
+#     & <grid with dimension: (n_days, lat, long)> --> inference_model()                                            #
+#                                                                                                                   #
+#####################################################################################################################
