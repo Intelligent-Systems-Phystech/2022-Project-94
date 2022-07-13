@@ -376,7 +376,7 @@ def prepare_full_train_data(aerology_path: str, land_path: str, one_day: bool = 
     full_train_days = []
     for a_path, l_path in zip(land_paths, aerology_paths):
         full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
-                                               prepare_train_data(a_path, one_day)]))
+                                               prepare_train_data(a_path, one_day)], axis=1))
     full_train_days = np.concatenate(full_train_days, axis=0)
     return full_train_days
 
