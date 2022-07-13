@@ -370,19 +370,66 @@ def prepare_train_data(path: str, one_day: False):
     return train_days
 
 
-def prepare_full_train_data(aerology_path: str, land_path: str, one_day: bool = False):
+def prepare_extra_feature(extra_feature_path: str):
+    extra_feature_paths = glob.glob(extra_feature_path + "/*.npy")
+    full_ef_ds = []
+    for ef_path in extra_feature_paths:
+        full_ef_ds.append(np.load(ef_path))
+    full_ef_ds = np.concatenate(full_ef_ds, axis=0)
+    return full_ef_ds
+
+
+def prepare_runoff(runoff_path: str, one_day: bool = True):
+    ds = xr.open_dataset(runoff_path, engine="cfgrib")
+    vars = list(ds.data_vars)
+    nps = {}.fromkeys(vars)
+
+    for var in vars:
+        nps[var] = ds[var].to_numpy()[:, 1, :, :]
+
+    train_day = []
+    time = ds.dims["time"]
+    day_var = {}.fromkeys(vars)
+    del ds
+
+    for day in range(time * 12 // 24):
+        for var in vars:
+            day_var[var] = []
+        for hour_period in range(2):
+            for var in vars:
+                day_var[var].append(nps[var][day * 2 + hour_period])
+        train_day.append(np.array([day_var[var] for var in vars]).reshape(-1, 41, 65))
+        if one_day:
+            break
+
+    train_day = np.array(train_day)
+    return train_day
+
+
+def prepare_full_train_data(aerology_path: str,
+                            land_path: str,
+                            runoff_path: str,
+                            extra_feature_path: str,
+                            one_day: bool = False):
     aerology_paths = glob.glob(aerology_path + "/*.grib")
     land_paths = glob.glob(land_path + "/*.grib")
+    runoff_paths = glob.glob(runoff_path + "/*.grib")
     full_train_days = []
     for a_path, l_path in zip(land_paths, aerology_paths):
         full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
-                                               prepare_train_data(a_path, one_day)], axis=1))
+                                               prepare_train_data(a_path, one_day),
+                                               prepare_runoff(runoff_path, one_day)], axis=1))
+    extra_feature_data = np.expand_dims(prepare_extra_feature(extra_feature_path), axis=1)
+    full_train_days.append(extra_feature_data)
     full_train_days = np.concatenate(full_train_days, axis=0)
     return full_train_days
 
-################################################
-#       Data preparation pipeline.
-#
-#   <gribs paths> --> prepare_full_train_data() --> <tensors>
-#
-################################################
+###################################################################################################################
+#       Data preparation - fitting pipeline.                                                                      #
+#                                                                                                                 #
+#   1)<gribs paths> --> prepare_full_train_data() --> <tensors with dimension: (n_days, n_features, long, lat)>-->#
+#   --> train_model() --> <pretrained model>;                                                                     #
+#   2)<cmips path> --> prepare_full_test_data() --> <tensors with dimension: (n_days, n_features, long, lat)>;    #
+#   3)<tensors with dimension: (n_days, n_features, long, lat)> & <pretrained model> --> inference_model()        #
+#                                                                                                                 #
+###################################################################################################################
