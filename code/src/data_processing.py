@@ -1,15 +1,16 @@
 import torch
 from osgeo import gdal
-
+import xarray as xr
 import matplotlib.pyplot as plt
-import os, glob
+import os
+import glob
 from tqdm import tqdm
 import subprocess
 import pandas as pd
 import numpy as np
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
-
+import glob
 
 def get_file_paths(path_to_data: str = 'drive/MyDrive/Belgorodskaya/*.tif', feature_names: list = ['tmax', 'tmin', 'pr']):
     """
@@ -261,3 +262,127 @@ def get_target(forecasting_period: tuple,
             freq='D')
     hail_data = hail_data.reindex(idx, fill_value=0)
     return hail_data, data
+
+
+def prepare_usa_shd(path: str):
+    data = pd.read_csv(path)
+    hail_data = data[data['EVENT_TYPE'] == "Hail"]
+    return hail_data
+
+
+def get_dataloader_for_p2p_pred(
+        feature_names: list = None,
+        data_path: str = DATA_PATH,
+        batch_size: int = 4,
+        eco: bool = True,
+        eco_len: int = 5,
+        train: bool = True,
+        part: int = 1,              # [ ] [ ] [ ] [ ]
+        grid: tuple = (2, 4)        # [ ] [ ] [ ] [ ]
+):
+    r"""
+
+    Args:
+        feature_names:
+        data_path:
+        batch_size:
+        eco:
+        eco_len:
+        train:
+        part:
+        grid
+
+    Returns:
+        dl: dataloader with data
+        x: data
+
+    Function for creating dataloader for train and test
+    """
+    xs = []
+
+    hail_path = data_path + "/Hail/"
+    no_hail_path = data_path + "/No Hail/"
+
+    hail_paths = glob.glob(hail_path + "*")
+    no_hail_paths = glob.glob(no_hail_path + "*")
+
+    for p in hail_paths[(part - 1): part]:
+        x = get_nps([feature_names[0]], p + "/*")
+        x = x[feature_names[0]]
+        x = np.nan_to_num(x)
+        x = np.expand_dims(x, axis=1)
+        for feature_name in feature_names[1:]:
+            numpys = get_nps([feature_name], p + "/*")
+            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+        x = torch.from_numpy(x)
+        x = x.long()
+        xs.append(x.unsqueeze(dim=0))
+
+    for p in no_hail_paths[(part - 1) * 10: 10 * part]:
+        x = get_nps([feature_names[0]], p + "/*")
+        x = x[feature_names[0]]
+        x = np.expand_dims(x, axis=1)
+        for feature_name in feature_names[1:]:
+            numpys = get_nps([feature_name], p + "/*")
+            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
+        x = torch.from_numpy(x)
+        x = x.long()
+        xs.append(x.unsqueeze(dim=0))
+
+    x = torch.cat(xs, dim=0)
+    if eco is True:
+        target = [1 for _ in range(len(hail_paths[(part - 1):  part]))] + \
+                 [0 for _ in range(len(no_hail_paths[(part - 1) * 10: 10 * part]))]
+    else:
+        target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
+    y = torch.tensor(target).float().reshape(-1, 1)
+    ds = TensorDataset(x, y)
+    dl = DataLoader(ds, batch_size, shuffle=True)
+
+    return dl, x
+
+
+def prepare_train_data(path: str, one_day: False):
+
+    ds = xr.open_dataset(path, engine="cfgrib")
+    vars = list(ds.data_vars)
+    nps = {}.fromkeys(vars)
+
+    for var in vars:
+        nps[var] = ds[var].to_numpy()
+
+    train_days = []
+    time = ds.dims["time"]
+    day_var = {}.fromkeys(vars)
+    del ds
+
+    for day in range(time * 6 // 24):
+        for var in vars:
+            day_var[var] = []
+        for hour_period in range(4):
+            for var in vars:
+                day_var[var].append(nps[var][day * 4 + hour_period])
+        train_days.append(np.array([day_var[var] for var in vars]).reshape(-1, 41, 65))
+        if one_day:
+            break
+
+    train_days = np.array(train_days)
+    return train_days
+
+
+def prepare_full_train_data(aerology_path: str, land_path: str, one_day: bool = False):
+    aerology_paths = glob.glob(aerology_path + "/*.grib")
+    land_paths = glob.glob(land_path + "/*.grib")
+    full_train_days = []
+    for a_path, l_path in zip(land_paths, aerology_paths):
+        full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
+                                               prepare_train_data(a_path, one_day)]))
+    full_train_days = np.concatenate(full_train_days, axis=0)
+    return full_train_days
+
+################################################
+#       Data preparation pipeline.
+#
+#   <gribs paths> --> prepare_full_train_data() --> <tensors>
+#
+################################################
