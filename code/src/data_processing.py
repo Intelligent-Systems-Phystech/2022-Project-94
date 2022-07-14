@@ -346,11 +346,21 @@ def prepare_train_data(path: str, one_day: False):
 
     ds = xr.open_dataset(path, engine="cfgrib")
     vars = list(ds.data_vars)
+
+    dropped = ["q", "z", "d2m", "cape", "sp"]
+    left_vars = []
+
+    for i, var in enumerate(vars):
+        if var in dropped:
+            continue
+        else:
+            left_vars.append(var)
+
+    vars = left_vars
+
     nps = {}.fromkeys(vars)
 
     for var in vars:
-        if var in ["q", "z", "d2m", "cape", "sp"]:
-            continue
         nps[var] = ds[var].to_numpy()
 
     train_days = []
@@ -360,13 +370,9 @@ def prepare_train_data(path: str, one_day: False):
 
     for day in range(time * 6 // 24):
         for var in vars:
-            if var in ["q", "z", "d2m", "cape", "sp"]:
-                continue
             day_var[var] = []
         for hour_period in range(4):
             for var in vars:
-                if var in ["q", "z", "d2m", "cape", "sp"]:
-                    continue
                 day_var[var].append(nps[var][day * 4 + hour_period])
         train_days.append(np.array([day_var[var] for var in vars]).reshape(-1, 41, 65))
         if one_day:
@@ -377,10 +383,18 @@ def prepare_train_data(path: str, one_day: False):
 
 
 def prepare_extra_feature(extra_feature_path: str):
-    extra_feature_paths = glob.glob(extra_feature_path + "/*.npy")
+    extra_feature_paths = sorted(glob.glob(extra_feature_path + "/*.npy"))
     full_ef_ds = []
     for ef_path in extra_feature_paths:
-        full_ef_ds.append(np.load(ef_path))
+        new_np = []
+        np_ = np.load(ef_path)
+        for day in range(len(np_) * 6 // 24):
+            day_np = []
+            for h in range(4):
+                day_np.append(np_[day * 4 + h])
+            new_np.append(day_np)
+        full_ef_ds.append(new_np)
+
     full_ef_ds = np.concatenate(full_ef_ds, axis=0)
     return full_ef_ds
 
@@ -421,13 +435,13 @@ def prepare_full_train_data(aerology_path: str,
     land_paths = glob.glob(land_path + "/*.grib")
     runoff_paths = glob.glob(runoff_path + "/*.grib")
     full_train_days = []
-    for a_path, l_path, ro_path in zip(land_paths, aerology_paths, runoff_paths):
-        full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
+    for a_path, l_path, ro_path in zip(sorted(aerology_paths), sorted(land_paths), sorted(runoff_paths)):
+        full_train_days.append(np.concatenate([#prepare_train_data(l_path, one_day),
                                                prepare_train_data(a_path, one_day),
                                                prepare_runoff(ro_path, one_day)], axis=1))
-    extra_feature_data = np.expand_dims(prepare_extra_feature(extra_feature_path), axis=1)
-    full_train_days.append(extra_feature_data)
+    extra_feature_data = prepare_extra_feature(extra_feature_path)
     full_train_days = np.concatenate(full_train_days, axis=0)
+    full_train_days = np.concatenate([full_train_days, extra_feature_data], axis=1)
     return full_train_days
 
 #####################################################################################################################
