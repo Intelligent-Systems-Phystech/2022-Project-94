@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import glob
+import math
 
 def short_date_format(row):
     row[0] = row[0][3:]
@@ -35,16 +36,9 @@ def get_target(data_path = DATA_PATH, region = CUR_REGION):
 
 
 IMPORTANT_COLS = [
-    "STATE",
     "BEGIN_DATE_TIME",
-    "END_DATE_TIME",
-    "MAGNITUDE",
-    "DAMAGE_CROPS",
-    "DAMAGE_PROPERTY",
     "BEGIN_LAT",
     "BEGIN_LON",
-    "END_LAT",
-    "END_LON",
 ]
 
 #####################
@@ -55,7 +49,7 @@ IMPORTANT_COLS = [
 
 
 def round_to25(n: float):
-    floor = np.floor(n)
+    floor = math.floor(n)
     if abs(n - floor) <= 0.125:
         return floor
     elif abs(n - (floor + 0.125)) <= 0.125:
@@ -105,7 +99,6 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
     for j, long_ in enumerate(long_grid):
         long_to_idx[long_] = j
 
-    print(len(lat_grid), len(long_grid))
     hail_df = dataframe[dataframe.EVENT_TYPE == "Hail"].reset_index().drop(columns=["index"])[IMPORTANT_COLS]
     hail_df["BEGIN_DATE_TIME"] = pd.to_datetime(hail_df["BEGIN_DATE_TIME"])
     hail_df["DOY"] = hail_df["BEGIN_DATE_TIME"].dt.dayofyear
@@ -125,14 +118,13 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
     return grid
 
 
-def prepare_target_grid(path: str, lat: tuple, long: tuple, format: str = "csv"):
-    target_paths = sorted(glob.glob(path + "/*." + format))
+def prepare_target_grid(path: str, lat: tuple, long: tuple):
+    target_paths = sorted(glob.glob(path + "/*"))
     grids = []
-    if format == "csv":
-        reader = pd.read_csv
-    for path in target_paths:
-        dataframe = reader(path)
-        grids.append(get_grid(dataframe, lat, long))
+    years = [i for i in range(2016, 2022)]
+    for path, year in zip(target_paths, years):
+        dataframe = pd.read_csv(path)
+        grids.append(get_grid(dataframe, lat, long, year))
     grids = np.concatenate(grids, axis=0)
     return grids
 
