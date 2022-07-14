@@ -125,8 +125,8 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
     return grid
 
 
-def prepare_target_grid(path: str, format: str, lat: tuple, long: tuple):
-    target_paths = glob.glob(path + "/*." + format)
+def prepare_target_grid(path: str, lat: tuple, long: tuple, format: str = "csv"):
+    target_paths = sorted(glob.glob(path + "/*." + format))
     grids = []
     if format == "csv":
         reader = pd.read_csv
