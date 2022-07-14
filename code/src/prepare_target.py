@@ -54,6 +54,26 @@ IMPORTANT_COLS = [
 #####################
 
 
+def round_to25(n: float):
+    floor = np.floor(n)
+    if abs(n - floor) <= 0.125:
+        return floor
+    elif abs(n - (floor + 0.125)) <= 0.125:
+        return floor + 0.25
+    elif abs(n - (floor + 0.5)) <= 0.125:
+        return floor + 0.5
+    elif abs(n - (floor + 0.75)) <= 0.125:
+        return floor + 0.75
+    else:
+        return floor + 1
+
+
+def round_coord(row):
+    row[0] = round_to25(row[0])
+    row[1] = round_to25(row[1])
+    return row
+
+
 def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
     leap_year = [2016, 2020]
     num_of_days = 365
@@ -105,14 +125,14 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
     return grid
 
 
-def prepare_target_grid(path: str, format: str, state: str):
+def prepare_target_grid(path: str, format: str, lat: tuple, long: tuple):
     target_paths = glob.glob(path + "/*." + format)
     grids = []
     if format == "csv":
         reader = pd.read_csv
     for path in target_paths:
         dataframe = reader(path)
-        grids.append(get_grid(dataframe, state))
+        grids.append(get_grid(dataframe, lat, long))
     grids = np.concatenate(grids, axis=0)
     return grids
 
