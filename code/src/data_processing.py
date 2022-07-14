@@ -349,6 +349,8 @@ def prepare_train_data(path: str, one_day: False):
     nps = {}.fromkeys(vars)
 
     for var in vars:
+        if var in ["q", "z", "d2m", "cape", "sp"]:
+            continue
         nps[var] = ds[var].to_numpy()
 
     train_days = []
@@ -358,9 +360,13 @@ def prepare_train_data(path: str, one_day: False):
 
     for day in range(time * 6 // 24):
         for var in vars:
+            if var in ["q", "z", "d2m", "cape", "sp"]:
+                continue
             day_var[var] = []
         for hour_period in range(4):
             for var in vars:
+                if var in ["q", "z", "d2m", "cape", "sp"]:
+                    continue
                 day_var[var].append(nps[var][day * 4 + hour_period])
         train_days.append(np.array([day_var[var] for var in vars]).reshape(-1, 41, 65))
         if one_day:
