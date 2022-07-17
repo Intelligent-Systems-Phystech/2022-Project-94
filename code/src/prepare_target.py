@@ -41,14 +41,17 @@ IMPORTANT_COLS = [
     "BEGIN_LON",
 ]
 
-#####################
-#                   #
-# Дописать get_grid #
-#                   #
-#####################
-
 
 def round_to25(n: float):
+    """
+
+    Args:
+        n:
+
+    Returns:
+
+    Вспомогательная функция для специального округления для сетки геоданных
+    """
     floor = math.floor(n)
     if abs(n - floor) <= 0.125:
         return floor
@@ -63,12 +66,33 @@ def round_to25(n: float):
 
 
 def round_coord(row):
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    Вспомогательная функция для преобразования координат сетки.
+    """
     row[0] = round_to25(row[0])
     row[1] = round_to25(row[1])
     return row
 
 
 def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
+    """
+
+    Args:
+        dataframe:
+        lat:
+        long:
+        year:
+
+    Returns:
+
+    Получение сетки из данных о штормовых событиях
+    """
     leap_year = [2016, 2020]
     num_of_days = 365
 
@@ -119,6 +143,18 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
 
 
 def prepare_target_grid(path: str, lat: tuple, long: tuple):
+    """
+
+    Args:
+        path:
+        lat:
+        long:
+
+    Returns:
+
+    Подготовка таргетной сетки
+
+    """
     target_paths = sorted(glob.glob(path + "/*"))
     grids = []
     years = [i for i in range(2016, 2022)]

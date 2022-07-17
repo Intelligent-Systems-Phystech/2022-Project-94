@@ -264,86 +264,19 @@ def get_target(forecasting_period: tuple,
     return hail_data, data
 
 
-def prepare_usa_shd(path: str):
-    data = pd.read_csv(path)
-    hail_data = data[data['EVENT_TYPE'] == "Hail"]
-    return hail_data
-
-
-def get_dataloader_for_p2p_pred(
-        feature_names: list = None,
-        data_path: str = DATA_PATH,
-        batch_size: int = 4,
-        eco: bool = True,
-        eco_len: int = 5,
-        train: bool = True,
-        part: int = 1,              # [ ] [ ] [ ] [ ]
-        grid: tuple = (2, 4)        # [ ] [ ] [ ] [ ]
-):
-    r"""
+def prepare_train_data(path: str, one_day: False):
+    """
 
     Args:
-        feature_names:
-        data_path:
-        batch_size:
-        eco:
-        eco_len:
-        train:
-        part:
-        grid
+        path:
+        one_day:
 
     Returns:
-        dl: dataloader with data
-        x: data
+        train_days
 
-    Function for creating dataloader for train and test
+    Функция для обработки данных из файлов базы данных.
+    Выдает тензор (дни, кол-во клим. перем, широта, долгота)
     """
-    xs = []
-
-    hail_path = data_path + "/Hail/"
-    no_hail_path = data_path + "/No Hail/"
-
-    hail_paths = glob.glob(hail_path + "*")
-    no_hail_paths = glob.glob(no_hail_path + "*")
-
-    for p in hail_paths[(part - 1): part]:
-        x = get_nps([feature_names[0]], p + "/*")
-        x = x[feature_names[0]]
-        x = np.nan_to_num(x)
-        x = np.expand_dims(x, axis=1)
-        for feature_name in feature_names[1:]:
-            numpys = get_nps([feature_name], p + "/*")
-            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
-        x = torch.from_numpy(x)
-        x = x.long()
-        xs.append(x.unsqueeze(dim=0))
-
-    for p in no_hail_paths[(part - 1) * 10: 10 * part]:
-        x = get_nps([feature_names[0]], p + "/*")
-        x = x[feature_names[0]]
-        x = np.expand_dims(x, axis=1)
-        for feature_name in feature_names[1:]:
-            numpys = get_nps([feature_name], p + "/*")
-            x = np.concatenate((x, np.expand_dims(numpys[feature_name], axis=1)), axis=1)
-        x = torch.from_numpy(x)
-        x = x.long()
-        xs.append(x.unsqueeze(dim=0))
-
-    x = torch.cat(xs, dim=0)
-    if eco is True:
-        target = [1 for _ in range(len(hail_paths[(part - 1):  part]))] + \
-                 [0 for _ in range(len(no_hail_paths[(part - 1) * 10: 10 * part]))]
-    else:
-        target = [1 for _ in range(len(hail_paths))] + [0 for _ in range(len(no_hail_paths))]
-    y = torch.tensor(target).float().reshape(-1, 1)
-    ds = TensorDataset(x, y)
-    dl = DataLoader(ds, batch_size, shuffle=True)
-
-    return dl, x
-
-
-def prepare_train_data(path: str, one_day: False):
-
     ds = xr.open_dataset(path, engine="cfgrib")
     vars = list(ds.data_vars)
 
@@ -383,6 +316,15 @@ def prepare_train_data(path: str, one_day: False):
 
 
 def prepare_extra_feature(extra_feature_path: str):
+    """
+
+    Args:
+        extra_feature_path:
+
+    Returns:
+
+    Аналогичная prepare_train_data, но для дополнительных подсчитанных отдельно фичей
+    """
     extra_feature_paths = sorted(glob.glob(extra_feature_path + "/*.npy"))
     full_ef_ds = []
     for ef_path in extra_feature_paths:
@@ -400,6 +342,16 @@ def prepare_extra_feature(extra_feature_path: str):
 
 
 def prepare_runoff(runoff_path: str, one_day: bool = True):
+    """
+
+    Args:
+        runoff_path:
+        one_day:
+
+    Returns:
+
+    Аналогичная prepare_train_data, но для отдельной фичи runoff
+    """
     ds = xr.open_dataset(runoff_path, engine="cfgrib")
     vars = list(ds.data_vars)
     nps = {}.fromkeys(vars)
@@ -431,6 +383,20 @@ def prepare_full_train_data(aerology_path: str,
                             runoff_path: str,
                             extra_feature_path: str,
                             one_day: bool = False):
+    """
+
+    Args:
+        aerology_path:
+        land_path:
+        runoff_path:
+        extra_feature_path:
+        one_day:
+
+    Returns:
+
+    Данная функция выдает полный датасет, стакая выходы функций выше.
+
+    """
     aerology_paths = glob.glob(aerology_path + "/*.grib")
     land_paths = glob.glob(land_path + "/*.grib")
     runoff_paths = glob.glob(runoff_path + "/*.grib")
