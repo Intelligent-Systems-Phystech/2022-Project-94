@@ -139,6 +139,17 @@ def get_grid(dataframe: pd.DataFrame, lat: tuple, long: tuple, year: int):
 
     for row in hail_np:
         grid[int(row[2]), lat_to_idx[row[0]], long_to_idx[row[1]]] = 1.0
+        try:
+            grid[int(row[2]), lat_to_idx[row[0] + 1], long_to_idx[row[1]]] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0] - 1], long_to_idx[row[1]]] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0]], long_to_idx[row[1]] + 1] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0]], long_to_idx[row[1]] - 1] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0] + 1], long_to_idx[row[1]] + 1] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0] - 1], long_to_idx[row[1]] + 1] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0] + 1], long_to_idx[row[1]] - 1] = 1.0
+            grid[int(row[2]), lat_to_idx[row[0] - 1], long_to_idx[row[1]] - 1] = 1.0
+        except IndexError:
+            pass
     return grid
 
 
