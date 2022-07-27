@@ -142,6 +142,7 @@ EVENTTYPE = "Град"
 MONTH_COL = "Month"
 YEAR_COL = "Year"
 TARGET = "target"
+HOURS_IN_DAY = 24
 
 
 def get_dataloader(
@@ -264,11 +265,12 @@ def get_target(forecasting_period: tuple,
     return hail_data, data
 
 
-def prepare_train_data(path: str, one_day: False):
+def prepare_train_data(path: str, variables: list = None, engine: str = "cfgrib", one_day: bool = False):
     """
-
     Args:
         path:
+        variables:
+        engine:
         one_day:
 
     Returns:
@@ -277,37 +279,41 @@ def prepare_train_data(path: str, one_day: False):
     Функция для обработки данных из файлов базы данных.
     Выдает тензор (дни, кол-во клим. перем, широта, долгота)
     """
-    ds = xr.open_dataset(path, engine="cfgrib")
-    vars = list(ds.data_vars)
 
-    dropped = ["q", "z", "d2m", "cape", "sp"]
-    left_vars = []
+    ds = xr.open_dataset(path, engine=engine)
 
-    for i, var in enumerate(vars):
-        if var in dropped:
-            continue
-        else:
-            left_vars.append(var)
+    if len(variables) == 0 or variables is None:
+        variables = list(ds.data_vars)
+        print("collecting all variables from the dataset")
 
-    vars = left_vars
-
-    nps = {}.fromkeys(vars)
-
-    for var in vars:
-        nps[var] = ds[var].to_numpy()
-
+    nps = {}.fromkeys(variables)
     train_days = []
-    time = ds.dims["time"]
-    day_var = {}.fromkeys(vars)
+    n_timestamps = ds.dims["time"]
+    lat = ds.dims["longitude"]
+    long = ds.dims["latitude"]
+    timedelta = ds.time.to_numpy()[1].astype('datetime64[h]') - ds.time.to_numpy()[0].astype('datetime64[h]')
+    timedelta = timedelta.astype("int")
+
+    if "step" in ds.dims:
+        for var in variables:
+            nps[var] = ds[var].to_numpy()[:, 1, :, :]
+    else:
+        for var in variables:
+            nps[var] = ds[var].to_numpy()
+
+    if timedelta == 0:
+        print("Dataset is not hourly periodic")
+
+    day_var = {}.fromkeys(variables)
     del ds
 
-    for day in range(time * 6 // 24):
-        for var in vars:
+    for day in range(n_timestamps * timedelta // HOURS_IN_DAY):
+        for var in variables:
             day_var[var] = []
-        for hour_period in range(4):
-            for var in vars:
-                day_var[var].append(nps[var][day * 4 + hour_period])
-        train_days.append(np.array([day_var[var] for var in vars]).reshape(-1, 41, 65))
+        for hour_period in range(HOURS_IN_DAY // timedelta):
+            for var in variables:
+                day_var[var].append(nps[var][day * HOURS_IN_DAY // timedelta + hour_period])
+        train_days.append(np.array([day_var[var] for var in variables]).reshape(-1, lat, long))
         if one_day:
             break
 
@@ -397,14 +403,15 @@ def prepare_full_train_data(aerology_path: str,
     Данная функция выдает полный датасет, стакая выходы функций выше.
 
     """
+
     aerology_paths = glob.glob(aerology_path + "/*.grib")
     land_paths = glob.glob(land_path + "/*.grib")
     runoff_paths = glob.glob(runoff_path + "/*.grib")
     full_train_days = []
     for a_path, l_path, ro_path in zip(sorted(aerology_paths), sorted(land_paths), sorted(runoff_paths)):
-        full_train_days.append(np.concatenate([#prepare_train_data(l_path, one_day),
+        full_train_days.append(np.concatenate([prepare_train_data(l_path, one_day),
                                                prepare_train_data(a_path, one_day),
-                                               prepare_runoff(ro_path, one_day)], axis=1))
+                                               prepare_train_data(ro_path, one_day)], axis=1))
     extra_feature_data = prepare_extra_feature(extra_feature_path)
     full_train_days = np.concatenate(full_train_days, axis=0)
     full_train_days = np.concatenate([full_train_days, extra_feature_data], axis=1)
