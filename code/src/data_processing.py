@@ -281,7 +281,8 @@ def prepare_train_data(path: str, variables: list = None, engine: str = "cfgrib"
     """
 
     ds = xr.open_dataset(path, engine=engine)
-
+    lat_name = list(ds.dims)[-2]
+    lon_name = list(ds.dims)[-1]
     if len(variables) == 0 or variables is None:
         variables = list(ds.data_vars)
         print("collecting all variables from the dataset")
@@ -289,8 +290,8 @@ def prepare_train_data(path: str, variables: list = None, engine: str = "cfgrib"
     nps = {}.fromkeys(variables)
     train_days = []
     n_timestamps = ds.dims["time"]
-    lat = ds.dims["longitude"]
-    long = ds.dims["latitude"]
+    lat = ds.dims[lat_name]
+    long = ds.dims[lon_name]
     timedelta = ds.time.to_numpy()[1].astype('datetime64[h]') - ds.time.to_numpy()[0].astype('datetime64[h]')
     timedelta = timedelta.astype("int")
 
