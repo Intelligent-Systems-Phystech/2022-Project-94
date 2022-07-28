@@ -111,6 +111,7 @@ class HailNetGrid(nn.Module):
             num_layers=self.lstm_num_layers,
             batch_first=True
         )
+        self.to(self.device)
 
     def forward(self, x):
         # x -> (n_batch, n_vars, x, y)
@@ -126,7 +127,7 @@ class HailNetGrid(nn.Module):
 
             t3 = self.lins1[i](t2)
             t4 = torch.sigmoid(t3)
-            c2d1 = self.conv2d1[i](t0)
+            c2d1 = self.convs2d1[i](t0)
             c2d2 = self.convs2d2[i](t0)
             h = torch.cat([t4, c2d1.flatten(start_dim=1), c2d2.flatten(start_dim=1)], dim=1)
             h = h.unsqueeze(dim=1)
