@@ -101,7 +101,7 @@ class HailNetGrid(nn.Module):
             self.convs2d1.append(nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=1, padding=1))
         self.convs2d2 = []
         for i in range(self.n):
-            self.convs2d2.append(nn.Conv2d(in_channels=1, out_channels=1, kernel_size=4, stride=1, padding=2))
+            self.convs2d2.append(nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, stride=1, padding=2))
 
         self.lin2 = nn.Linear(3 * (self.x * self.y * self.n), 8192)
         self.lin3 = nn.Linear(8192, self.x * self.y)
@@ -115,32 +115,28 @@ class HailNetGrid(nn.Module):
 
     def forward(self, x):
         # x -> (n_batch, n_vars, x, y)
-        h0 = torch.randn(self.lstm_num_layers, x.size(0), 8192).to(self.device)  # hidden cell for rnn
-        c0 = torch.randn(self.lstm_num_layers, x.size(0), 8192).to(self.device)  # hidden cell for rnn
+        h0 = torch.randn(self.lstm_num_layers, 8192).to(self.device)  # hidden cell for rnn
+        c0 = torch.randn(self.lstm_num_layers, 8192).to(self.device)  # hidden cell for rnn
         hs1 = []
 
-        for i in range(self.seq_len):
-
+        for i in range(self.n):
+            print(x.shape)
             t0 = x[:, i].float()
             t1 = self.lins0[i](t0.flatten(start_dim=1))
             t2 = torch.sigmoid(t1)
-
             t3 = self.lins1[i](t2)
             t4 = torch.sigmoid(t3)
             c2d1 = self.convs2d1[i](t0)
             c2d2 = self.convs2d2[i](t0)
             h = torch.cat([t4, c2d1.flatten(start_dim=1), c2d2.flatten(start_dim=1)], dim=1)
-            h = h.unsqueeze(dim=1)
             hs1.append(h)
 
         t = torch.cat(hs1, dim=1)
         t = self.lin2(t)
         out, _ = self.lstm(t, (h0, c0))
 
-        out = out[:, -1, :]
-
         out = self.lin3(out)
         out = torch.sigmoid(out)
-        out = out.reshape(self.x, self.y)
+        out = out.reshape(1, self.x, self.y)
 
         return out
