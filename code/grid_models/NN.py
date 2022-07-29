@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 import numpy as np
-
+from torch.utils.data import TensorDataset
+from torch.utils.data import DataLoader
 
 class HailNetDots(nn.Module):
     r"""
@@ -120,7 +121,6 @@ class HailNetGrid(nn.Module):
         hs1 = []
 
         for i in range(self.n):
-            print(x.shape)
             t0 = x[:, i].float()
             t1 = self.lins0[i](t0.flatten(start_dim=1))
             t2 = torch.sigmoid(t1)
@@ -140,3 +140,39 @@ class HailNetGrid(nn.Module):
         out = out.reshape(1, self.x, self.y)
 
         return out
+
+    def fit(self, x, y, optimizer, lr, batch_size, num_epochs, loss_fn):
+
+        opt = optimizer(self.parameters(), lr=lr)
+        losses = []
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        x = torch.tensor(x)
+        y = torch.tensor(y)
+        tds = TensorDataset(x, y)
+        tdl = DataLoader(tds, batch_size)
+
+        for epoch in range(num_epochs):
+            for i, (xb, yb) in enumerate(tdl):
+                xb, yb = xb.to(device), yb.to(device)
+                predictions = self(xb)
+                opt.zero_grad()
+                loss = loss_fn(predictions, yb)
+                loss.backward()
+                opt.step()
+            losses.append(loss.detach().item())
+            print(f'Epoch: {epoch} | Loss: {loss.detach().item()}')
+
+    def predict(self, x):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        x = torch.tensor(x)
+        tds = TensorDataset(x)
+        tdl = DataLoader(tds, batch_size=1)
+        with torch.no_grad():
+            self.eval()
+            predictions = []
+            for xt in tdl:
+                xt = xt.to(device)
+                predictions.append(self())
+                break
+        pass
+
